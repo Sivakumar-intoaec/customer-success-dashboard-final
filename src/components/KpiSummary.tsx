@@ -26,9 +26,9 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
 }) => {
   if (!summary) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-white rounded-xl p-4 border border-slate-200 animate-pulse h-28" />
+          <div key={i} className="skeleton h-28 rounded-2xl" />
         ))}
       </div>
     );
@@ -49,108 +49,99 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
   const cards = [
     {
       key: 'total',
-      label: 'Accounts in view',
+      label: 'Accounts',
       value: filteredCount,
       suffix: onlyPaidOrgs ? 'paid' : `of ${totalAccounts}`,
-      hint: totalPaidCount > 0 ? `${totalPaidCount} on All-in-One` : 'Active portfolio',
+      hint: totalPaidCount > 0 ? `${totalPaidCount} All-in-One` : 'Portfolio total',
       icon: Users,
-      iconClass: 'bg-sky-50 text-sky-600',
+      accent: '#0ea5e9',
+      accentBg: 'rgba(14,165,233,0.1)',
       onClick: () => onFilterClick?.('all'),
     },
     {
       key: 'health',
-      label: 'Avg health score',
+      label: 'Avg Health',
       value: Math.round(avgHealthScore),
       suffix: '/ 100',
-      hint:
-        avgHealthScore >= 70
-          ? 'Healthy portfolio'
-          : avgHealthScore >= 40
-            ? 'Needs monitoring'
-            : 'Needs CS focus',
+      hint: avgHealthScore >= 70 ? 'Portfolio healthy' : avgHealthScore >= 40 ? 'Needs monitoring' : 'Needs CS focus',
       icon: HeartPulse,
-      iconClass:
-        avgHealthScore >= 70
-          ? 'bg-emerald-50 text-emerald-600'
-          : avgHealthScore >= 40
-            ? 'bg-amber-50 text-amber-600'
-            : 'bg-rose-50 text-rose-600',
-      valueClass:
-        avgHealthScore >= 70
-          ? 'text-emerald-700'
-          : avgHealthScore >= 40
-            ? 'text-amber-700'
-            : 'text-rose-700',
+      accent: avgHealthScore >= 70 ? '#10b981' : avgHealthScore >= 40 ? '#f59e0b' : '#f43f5e',
+      accentBg: avgHealthScore >= 70 ? 'rgba(16,185,129,0.1)' : avgHealthScore >= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(244,63,94,0.1)',
     },
     {
       key: 'attention',
-      label: 'Needs CS focus',
+      label: 'Need Focus',
       value: accountsNeedingAttention,
       suffix: 'accounts',
       hint: `${distribution.critical} critical · ${distribution.atRisk} at risk`,
       icon: AlertTriangle,
-      iconClass: 'bg-amber-50 text-amber-600',
-      valueClass: 'text-amber-600',
-      borderClass: 'border-amber-200',
+      accent: '#f59e0b',
+      accentBg: 'rgba(245,158,11,0.1)',
       onClick: () => onFilterClick?.('attention'),
     },
     {
       key: 'churn',
-      label: 'Inactive-user risk',
+      label: 'Inactive Risk',
       value: churnRiskOrgs,
       suffix: 'orgs',
-      hint: 'Users quiet for 14+ days',
+      hint: 'Quiet for 14+ days',
       icon: Flame,
-      iconClass: 'bg-rose-50 text-rose-600',
-      valueClass: 'text-rose-600',
+      accent: '#f43f5e',
+      accentBg: 'rgba(244,63,94,0.1)',
     },
     {
       key: 'stickiness',
-      label: 'Daily engagement',
+      label: 'Engagement',
       value: `${stickinessPercent}%`,
-      suffix: 'DAU / MAU',
-      hint: 'How often teams come back',
+      suffix: 'DAU/MAU',
+      hint: 'Daily team return rate',
       icon: Activity,
-      iconClass: 'bg-teal-50 text-teal-600',
+      accent: '#0d9488',
+      accentBg: 'rgba(13,148,136,0.1)',
     },
     {
       key: 'alerts',
-      label: 'Critical alerts',
+      label: 'Critical Alerts',
       value: totalCriticalAlerts,
       suffix: 'open',
-      hint: 'Operational issues flagged',
+      hint: 'Operational flags',
       icon: Bell,
-      iconClass: 'bg-violet-50 text-violet-600',
-      valueClass: totalCriticalAlerts > 0 ? 'text-rose-600' : undefined,
+      accent: totalCriticalAlerts > 0 ? '#f43f5e' : '#8b5cf6',
+      accentBg: totalCriticalAlerts > 0 ? 'rgba(244,63,94,0.1)' : 'rgba(139,92,246,0.1)',
       onClick: totalCriticalAlerts > 0 ? () => onFilterClick?.('attention') : undefined,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
             key={card.key}
             onClick={card.onClick}
-            className={`bg-white rounded-xl p-4 border shadow-sm transition-all ${
-              card.borderClass || 'border-slate-200'
-            } ${card.onClick ? 'cursor-pointer hover:shadow-md hover:border-sky-300' : ''}`}
+            className={`relative rounded-2xl p-4 border transition-all duration-200 animate-fade-in overflow-hidden ${card.onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-lg' : ''}`}
+            style={{
+              background: 'linear-gradient(135deg, #111827 0%, #0f172a 100%)',
+              borderColor: 'rgba(51,65,85,0.6)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            }}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">{card.label}</span>
-              <div className={`p-2 rounded-lg ${card.iconClass}`}>
-                <Icon className="w-4 h-4" />
+            {/* Glow orb */}
+            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none"
+              style={{ background: card.accent }} />
+
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{card.label}</span>
+              <div className="p-1.5 rounded-lg" style={{ background: card.accentBg }}>
+                <Icon className="w-3.5 h-3.5" style={{ color: card.accent }} />
               </div>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${card.valueClass || 'text-slate-900'}`}>
-                {card.value}
-              </span>
-              <span className="text-xs text-slate-500">{card.suffix}</span>
+            <div className="flex items-baseline gap-1.5 mb-1">
+              <span className="text-2xl font-black" style={{ color: card.accent }}>{card.value}</span>
+              <span className="text-[11px] text-slate-500">{card.suffix}</span>
             </div>
-            <div className="mt-2 text-xs text-slate-500">{card.hint}</div>
+            <div className="text-[11px] text-slate-500 truncate">{card.hint}</div>
           </div>
         );
       })}

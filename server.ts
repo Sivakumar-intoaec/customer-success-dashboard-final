@@ -371,6 +371,48 @@ async function startServer() {
           .slice(0, 5),
       })).sort((a, b) => b.orgCount - a.orgCount);
 
+      // Build dailyTrend by aggregating healthHistory across all accounts per date
+      interface HealthHistoryEntry { date: number; healthScore: number; stickinessRatio: number; dau: number; mau: number }
+      const trendMap = new Map<string, { totalHealth: number; totalStickiness: number; totalDau: number; totalMau: number; count: number; ts: number }>();
+      for (const r of results) {
+        if (!r.detail) continue;
+        const d = r.detail as DetailShape;
+        const history: HealthHistoryEntry[] = (d as unknown as { healthHistory?: HealthHistoryEntry[] }).healthHistory ?? [];
+        for (const h of history) {
+          const ts = toEpochMs(h.date as unknown as string | number);
+          if (!ts) continue;
+          const day = new Date(ts);
+          const key = `${day.getUTCFullYear()}-${String(day.getUTCMonth() + 1).padStart(2, '0')}-${String(day.getUTCDate()).padStart(2, '0')}`;
+          const existing = trendMap.get(key);
+          if (existing) {
+            existing.totalHealth += h.healthScore || 0;
+            existing.totalStickiness += h.stickinessRatio || 0;
+            existing.totalDau += h.dau || 0;
+            existing.totalMau += h.mau || 0;
+            existing.count += 1;
+          } else {
+            trendMap.set(key, {
+              totalHealth: h.healthScore || 0,
+              totalStickiness: h.stickinessRatio || 0,
+              totalDau: h.dau || 0,
+              totalMau: h.mau || 0,
+              count: 1,
+              ts,
+            });
+          }
+        }
+      }
+      const dailyTrend = Array.from(trendMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-trendDays)
+        .map(([, v]) => ({
+          date: v.ts,
+          avgHealthScore: Math.round((v.totalHealth / v.count) * 10) / 10,
+          avgStickiness: Math.round((v.totalStickiness / v.count) * 1000) / 1000,
+          avgAutomationScore: 0,
+          orgCount: v.count,
+        }));
+
       const synthesized = {
         summary: {
           totalAccounts,
@@ -387,7 +429,7 @@ async function startServer() {
           distribution,
           trends,
         },
-        dailyTrend: [],
+        dailyTrend,
         moduleUsageSummary,
         accounts: validAccounts,
       };

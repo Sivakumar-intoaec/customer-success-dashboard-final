@@ -22,6 +22,7 @@ import { CsAiAssistantModal } from './components/CsAiAssistantModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ActivityFeed } from './components/ActivityFeed';
 import { AttentionQueue } from './components/AttentionQueue';
+import { CeoPresentationModal } from './components/CeoPresentationModal';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 const REFRESH_MS = 5 * 60 * 1000;
@@ -38,6 +39,7 @@ export default function App() {
   const [customApiKey, setCustomApiKey] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isPresentationOpen, setIsPresentationOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [aiContextData, setAiContextData] = useState<unknown>(null);
   const [selectedAccount, setSelectedAccount] = useState<AccountSummary | null>(null);
@@ -136,7 +138,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
   const accounts = data?.accounts || [];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-sky-500 selection:text-white">
+    <div className="min-h-screen text-slate-100 antialiased selection:bg-sky-500 selection:text-white" style={{ background: '#080d15' }}>
       <Navbar
         searchQuery={filter.searchQuery}
         onSearchChange={(q) => handleFilterChange({ searchQuery: q })}
@@ -153,18 +155,22 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
         onOpenSettings={() => setIsSettingsOpen(true)}
         onlyPaidOrgs={filter.onlyPaidOrgs}
         onToggleOnlyPaidOrgs={() => handleFilterChange({ onlyPaidOrgs: !filter.onlyPaidOrgs })}
+        onOpenPresentation={() => setIsPresentationOpen(true)}
+        hasPresentationData={!!data}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
         {error && (
-          <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-100 text-xs flex items-start justify-between gap-3">
+          <div className="p-4 rounded-2xl text-xs flex items-start justify-between gap-3"
+            style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.25)', color: '#fca5a5' }}>
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#f87171' }} />
               <span>{error}</span>
             </div>
             <button
               onClick={loadDashboardData}
-              className="px-2 py-1 rounded bg-rose-900 hover:bg-rose-800 text-white font-bold text-[11px] shrink-0"
+              className="px-3 py-1 rounded-lg font-bold text-[11px] shrink-0 transition-all active:scale-95"
+              style={{ background: 'rgba(244,63,94,0.2)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)' }}
             >
               Retry
             </button>
@@ -172,8 +178,9 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
         )}
 
         {isLoading && loadSourceHint && (
-          <div className="p-3 rounded-xl bg-sky-950/50 border border-sky-800 text-sky-100 text-xs flex items-center gap-2">
-            <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400" />
+          <div className="p-3 rounded-2xl text-xs flex items-center gap-2"
+            style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', color: '#7dd3fc' }}>
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ color: '#38bdf8' }} />
             <span>{loadSourceHint}</span>
           </div>
         )}
@@ -251,6 +258,13 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
         onClose={() => setIsSettingsOpen(false)}
         customApiKey={customApiKey}
         onSaveApiKey={(newKey) => setCustomApiKey(newKey)}
+      />
+
+      <CeoPresentationModal
+        isOpen={isPresentationOpen}
+        onClose={() => setIsPresentationOpen(false)}
+        data={data}
+        paidOrgsCount={paidOrgs.length}
       />
     </div>
   );
