@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { generateCsInsights } from './src/services/gemini.js';
 
 function toEpochMs(value: unknown): number | null {
@@ -460,6 +459,7 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
 // Vite middleware in dev, static files in production
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   (async () => {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
