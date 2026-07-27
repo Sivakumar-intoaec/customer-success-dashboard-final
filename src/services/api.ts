@@ -163,16 +163,44 @@ export async function fetchPaidOrganizations(): Promise<PaymasterOrganization[]>
       | string[]
     >(text);
 
+    let orgs: PaymasterOrganization[] = [];
+
     if (env.body && !Array.isArray(env.body) && typeof env.body === 'object' && 'organizationIds' in env.body) {
       const ids = (env.body as { organizationIds?: string[] }).organizationIds ?? [];
-      return ids.filter(Boolean).map((id) => ({ organizationId: id }));
-    }
-    if (Array.isArray(env.body)) {
-      return (env.body as Array<string | PaymasterOrganization>).map((item) =>
+      orgs = ids.filter(Boolean).map((id) => ({ organizationId: id }));
+    } else if (Array.isArray(env.body)) {
+      orgs = (env.body as Array<string | PaymasterOrganization>).map((item) =>
         typeof item === 'string' ? { organizationId: item } : item
       );
     }
-    return [];
+
+    // Fetch subscription details in parallel
+    const detailedOrgs = await Promise.all(
+      orgs.map(async (org) => {
+        try {
+          const detRes = await fetch(`${BASE_URL}/paymaster`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventType: 'GET_ORGANIZATION_SUBSCRIPTION_DETAILS',
+              organizationId: org.organizationId,
+            }),
+          });
+          if (detRes.ok) {
+            const detText = await detRes.text();
+            const detEnv = parseEnvelope<{ subscriptionValidTill?: string | number }>(detText);
+            if (detEnv.body?.subscriptionValidTill) {
+              org.subscriptionValidTill = toEpochMs(detEnv.body.subscriptionValidTill) || undefined;
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+        return org;
+      })
+    );
+
+    return detailedOrgs;
   } catch (err) {
     console.error('Failed to fetch paid organizations from Paymaster:', err);
     return [];

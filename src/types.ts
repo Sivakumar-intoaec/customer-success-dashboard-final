@@ -6,6 +6,7 @@ export interface PaymasterOrganization {
   planName?: string;
   status?: string;
   subscribedAt?: number;
+  subscriptionValidTill?: number;
   [key: string]: unknown;
 }
 

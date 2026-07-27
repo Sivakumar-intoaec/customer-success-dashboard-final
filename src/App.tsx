@@ -104,12 +104,12 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [loadDashboardData]);
 
-  const paidOrgsSet = useMemo(() => {
-    const set = new Set<string>();
+  const paidOrgsMap = useMemo(() => {
+    const map = new Map<string, PaymasterOrganization>();
     paidOrgs.forEach((org) => {
-      if (org.organizationId) set.add(org.organizationId);
+      if (org.organizationId) map.set(org.organizationId, org);
     });
-    return set;
+    return map;
   }, [paidOrgs]);
 
   const handleFilterChange = (updated: Partial<DashboardFilter>) => {
@@ -221,7 +221,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
           onFilterChange={handleFilterChange}
           onSelectAccount={setSelectedAccount}
           onDraftEmailForAccount={handleDraftEmailForAccount}
-          paidOrgsSet={paidOrgsSet}
+          paidOrgsMap={paidOrgsMap}
         />
 
         <ModuleAdoptionCard
@@ -242,7 +242,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
           onClose={() => setSelectedAccount(null)}
           onDraftEmail={handleOpenAiWithAccountModal}
           customApiKey={customApiKey || undefined}
-          isPaidPlan={paidOrgsSet.has(selectedAccount.organizationId) || selectedAccount.isPaidPlan}
+          isPaidPlan={paidOrgsMap.has(selectedAccount.organizationId) || selectedAccount.isPaidPlan}
         />
       )}
 

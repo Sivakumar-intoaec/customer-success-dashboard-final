@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AccountSummary, DashboardFilter } from '../types';
+import { AccountSummary, DashboardFilter, PaymasterOrganization } from '../types';
 import {
   formatRelativeTime,
   getSuggestedCsAction,
@@ -28,7 +28,7 @@ interface AccountsTableProps {
   onFilterChange: (updated: Partial<DashboardFilter>) => void;
   onSelectAccount: (account: AccountSummary) => void;
   onDraftEmailForAccount: (account: AccountSummary) => void;
-  paidOrgsSet: Set<string>;
+  paidOrgsMap: Map<string, PaymasterOrganization>;
 }
 
 const CARD_STYLE: React.CSSProperties = {
@@ -44,7 +44,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
   onFilterChange,
   onSelectAccount,
   onDraftEmailForAccount,
-  paidOrgsSet,
+  paidOrgsMap,
 }) => {
   const [sortField, setSortField] = useState<'healthScore' | 'organizationName' | 'lastActivityAt' | 'riskScore'>('healthScore');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
@@ -64,8 +64,8 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
   };
 
   const filteredAccounts = accounts.filter((acc) => {
-    if (filter.onlyPaidOrgs && paidOrgsSet.size > 0) {
-      const isPaid = paidOrgsSet.has(acc.organizationId) || Boolean(acc.isPaidPlan);
+    if (filter.onlyPaidOrgs && paidOrgsMap.size > 0) {
+      const isPaid = paidOrgsMap.has(acc.organizationId) || Boolean(acc.isPaidPlan);
       if (!isPaid) return false;
     }
     if (filter.healthBucket === 'attention') {
@@ -215,7 +215,8 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
           <tbody>
             {sortedAccounts.length > 0 ? (
               sortedAccounts.map((account) => {
-                const isPaid = paidOrgsSet.size === 0 || paidOrgsSet.has(account.organizationId) || account.isPaidPlan;
+                const paidOrg = paidOrgsMap.get(account.organizationId);
+                const isPaid = paidOrgsMap.size === 0 || paidOrg != null || account.isPaidPlan;
                 const healthScore = Math.round(account.healthScore || 0);
 
                 return (
@@ -263,6 +264,15 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
                               )}
                             </button>
                           </div>
+                          {paidOrg?.subscriptionValidTill && (
+                            <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-slate-400 bg-slate-800/50 w-fit px-2 py-0.5 rounded-md border border-slate-700/50">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#38bdf8' }}></span>
+                              <span>Renews {new Date(paidOrg.subscriptionValidTill).toLocaleDateString()}</span>
+                              <span className="opacity-70 border-l border-slate-600 pl-1.5 ml-0.5">
+                                {Math.ceil((paidOrg.subscriptionValidTill - Date.now()) / 86400000)} days left
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
