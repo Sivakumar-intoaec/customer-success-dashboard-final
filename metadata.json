@@ -1,0 +1,6 @@
+{
+  "name": "Customer Success Dashboard",
+  "description": "Friendly, interactive Customer Success dashboard for monitoring paid customer health, adoption, usage, and alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
