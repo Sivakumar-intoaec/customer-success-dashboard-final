@@ -30,6 +30,260 @@ function getValidUrl(envValue: string | undefined, defaultUrl: string): string {
   return trimmed.replace(/\/+$/, '');
 }
 
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function enrichAccountWithCSMetrics(acc: any): any {
+  const orgId = String(acc.organizationId || '');
+  const seed = hashString(orgId);
+
+  // Deterministic mock inputs
+  const hasBOQ = seed % 2 === 0;
+  const hasProcurement = seed % 3 !== 0;
+  const hasSchedule = seed % 5 !== 3;
+  const coreModules = [];
+  if (hasBOQ) coreModules.push('BOQ');
+  if (hasProcurement) coreModules.push('PROCUREMENT');
+  if (hasSchedule) coreModules.push('SCHEDULE');
+
+  const otherCount = seed % 6; // other tracked modules (max 5)
+  const records30d = seed % 15;
+  const hasWorkflow = seed % 3 !== 0;
+  const executions30d = seed % 25;
+  const failureRate = (seed % 100) / 100;
+  const avgProjectRisk = 10 + (seed % 80);
+  const ticketsCount = seed % 4;
+  const csat = 3.2 + (seed % 18) / 10;
+  const whatsappEngagement = (seed % 100) / 100;
+  const bgJobFailure = (seed % 50) / 100;
+  const alertResolutionDays = seed % 14;
+
+  const licensedSeats = 5 + (seed % 95);
+  const activeSeats = Math.min(licensedSeats, Math.round(licensedSeats * (0.3 + 0.65 * (seed % 10) / 10)));
+  const seatUtilisation = Math.round((activeSeats / licensedSeats) * 100);
+
+  const daysToRenewal = -30 + (seed % 400);
+  const renewalDate = Date.now() + daysToRenewal * 86400000;
+
+  const projectsCount = 1 + (seed % 5);
+  const stalledProjectsCount = seed % (projectsCount + 1);
+  const activeProjectsCount = projectsCount - stalledProjectsCount;
+
+  const milestonesTotal = 4;
+  const milestonesDone = 1 + (seed % 4);
+  const ttfv = 5 + (seed % 25);
+
+  const lastExecContact = Date.now() - (seed % 250) * 86400000;
+  const lastQbr = Date.now() - (seed % 365) * 86400000;
+  const execIdentified = (seed % 3) !== 0;
+
+  // Factor Sub-Scores
+  // HS-2 Active projects
+  let hs2 = 0;
+  if (projectsCount === 1) hs2 = 40;
+  else if (projectsCount >= 2 && projectsCount <= 3) hs2 = 70;
+  else if (projectsCount >= 4) hs2 = 90;
+  if (activeProjectsCount >= 1) hs2 += 10;
+  hs2 = Math.min(100, hs2);
+
+  // HS-3 Modules
+  let hs3 = coreModules.length * 15;
+  hs3 += otherCount * 5;
+  let depthBonus = 0;
+  if (records30d >= 10) depthBonus = 30;
+  else if (records30d >= 3) depthBonus = 15;
+  hs3 += depthBonus;
+  hs3 = Math.min(100, hs3);
+
+  // HS-4 Engagement
+  const wau = acc.wau ?? 2;
+  const mau = acc.mau ?? 5;
+  const stickiness = mau > 0 ? wau / mau : 0;
+  const hs4 = Math.min(100, Math.max(0, Math.round(stickiness / 0.5 * 100)));
+
+  // HS-5 Onboarding
+  const hs5 = Math.round((milestonesDone / milestonesTotal) * 100);
+
+  // HS-6 Automation
+  let hs6 = 0;
+  if (hasWorkflow) hs6 += 40;
+  hs6 += executions30d * 2;
+  let reliabilityBonus = 0;
+  if (failureRate < 0.10) reliabilityBonus = 20;
+  else if (failureRate < 0.30) reliabilityBonus = 10;
+  hs6 += reliabilityBonus;
+  hs6 = Math.min(100, hs6);
+
+  // HS-7 Project risk
+  const hs7 = 100 - avgProjectRisk;
+
+  // HS-8 Critical alerts
+  const openAlerts = acc.openAlertsCritical ?? acc.openAlerts?.critical ?? 0;
+  let hs8 = 0;
+  if (openAlerts === 0) hs8 = 100;
+  else if (openAlerts <= 2) hs8 = 50;
+
+  // HS-1 Weighted Health
+  let weightedHealth = (hs2 * 0.25) + (hs3 * 0.20) + (hs4 * 0.15) + (hs5 * 0.10) + (hs6 * 0.10) + (hs7 * 0.10) + (hs8 * 0.10);
+
+  // HS-9 Secondary adjustments
+  if (alertResolutionDays > 7) weightedHealth -= 5;
+  if (whatsappEngagement < 0.30) weightedHealth -= 3;
+  else if (whatsappEngagement > 0.70) weightedHealth += 2;
+  if (bgJobFailure > 0.30) weightedHealth -= 5;
+  else if (bgJobFailure > 0.10) weightedHealth -= 2;
+
+  const healthScore = Math.min(100, Math.max(0, Math.round(weightedHealth)));
+  
+  // Health bucket (HS-10)
+  let healthBucket: 'healthy' | 'at-risk' | 'critical' = 'critical';
+  if (healthScore >= 70) healthBucket = 'healthy';
+  else if (healthScore >= 40) healthBucket = 'at-risk';
+
+  // Inactive Risk (IR-1 to IR-5)
+  const lastActivityEpoch = toEpochMs(acc.lastActivityAt);
+  const daysSilent = lastActivityEpoch ? Math.floor((Date.now() - lastActivityEpoch) / 86400000) : (seed % 45);
+  const lastActionDate = lastActivityEpoch || (Date.now() - daysSilent * 86400000);
+  
+  let inactiveRiskState: 'healthy' | 'watch' | 'action' = 'healthy';
+  if (daysSilent >= 30) inactiveRiskState = 'action';
+  else if (daysSilent >= 15) inactiveRiskState = 'watch';
+
+  // Renewal Readiness (RR-2)
+  let renewalState: 'healthy' | 'watch' | 'action' = 'healthy';
+  const healthTrend = acc.healthTrend || 'stable';
+  if (healthScore < 40 || openAlerts > 0 || (healthTrend === 'declining' && daysToRenewal <= 60)) {
+    renewalState = 'action';
+  } else if (((healthScore >= 40 && healthScore <= 69) || healthTrend === 'declining') && daysToRenewal <= 90) {
+    renewalState = 'watch';
+  }
+
+  // Churn Risk signals (CR-1)
+  const signalA = healthTrend === 'declining' && (seed % 2 === 0);
+  const signalB = daysSilent >= 30;
+  const signalC = ticketsCount >= 3 || csat < 3.5;
+  const signalD = activeProjectsCount === 0;
+  const signalE = seatUtilisation < 40;
+
+  const churnRiskSignals = [];
+  if (signalA) churnRiskSignals.push('health_drop');
+  if (signalB) churnRiskSignals.push('inactive_30d');
+  if (signalC) churnRiskSignals.push('support_tickets_or_csat');
+  if (signalD) churnRiskSignals.push('no_active_projects');
+  if (signalE) churnRiskSignals.push('low_seat_utilisation');
+
+  let churnRiskLevel: 'healthy' | 'watch' | 'action' = 'healthy';
+  if (churnRiskSignals.length >= 3) churnRiskLevel = 'action';
+  else if (churnRiskSignals.length >= 1) churnRiskLevel = 'watch';
+
+  // Executive Engagement (EE-2)
+  const daysSinceExecContact = Math.floor((Date.now() - lastExecContact) / 86400000);
+  const daysSinceQbr = Math.floor((Date.now() - lastQbr) / 86400000);
+  let execEngagementState: 'healthy' | 'watch' | 'action' = 'healthy';
+  if (!execIdentified || daysSinceExecContact > 180) execEngagementState = 'action';
+  else if (daysSinceExecContact > 90 || daysSinceQbr > 180) execEngagementState = 'watch';
+
+  // Onboarding Completion state (OB-3)
+  const onboardingProgress = Math.round((milestonesDone / milestonesTotal) * 100);
+  let onboardingState: 'healthy' | 'watch' | 'action' = 'healthy';
+  if (onboardingProgress < 50 || ttfv > 30) onboardingState = 'action';
+
+  // Features list
+  const featuresUsed = [];
+  if (seed % 2 === 0) featuresUsed.push('2D Takeoff');
+  if (seed % 3 === 0) featuresUsed.push('Proposal Builder');
+  if (seed % 5 === 0) featuresUsed.push('WhatsApp automation');
+  if (seed % 7 === 0) featuresUsed.push('Estimation');
+
+  const finalWau = acc.wau || Math.round(activeSeats * 1.5);
+  const finalMau = acc.mau || Math.round(activeSeats * 2.5);
+  const calculatedStickiness = finalMau > 0 ? finalWau / finalMau : 0;
+
+  return {
+    ...acc,
+    healthScore,
+    healthBucket,
+    dau: acc.dau || activeSeats,
+    wau: finalWau,
+    mau: finalMau,
+    userCount: acc.userCount || Math.round(licensedSeats * 1.2),
+    stickinessRatio: acc.stickinessRatio || calculatedStickiness,
+    activeProjectsCount,
+    stalledProjectsCount,
+    renewalDate,
+    daysToRenewal,
+    renewalState,
+    churnRiskLevel,
+    churnRiskSignals,
+    licensedSeats,
+    activeSeats,
+    seatUtilisation,
+    lastActionDate,
+    daysSilent,
+    inactiveRiskState,
+    lastExecContact,
+    lastQbr,
+    execIdentified,
+    execEngagementState,
+    onboardingProgress,
+    ttfv,
+    onboardingState,
+    ticketsCount14d: ticketsCount,
+    csat,
+    recordsCreated30d: records30d,
+    featuresUsed,
+    avgProjectRisk,
+  };
+}
+
+function recalculateSummary(accounts: any[]) {
+  const totalAccounts = accounts.length;
+  const avgHealthScore = totalAccounts > 0
+    ? Math.round((accounts.reduce((s, a) => s + (a.healthScore ?? 0), 0) / totalAccounts) * 10) / 10
+    : 0;
+  const avgStickiness = totalAccounts > 0
+    ? Math.round((accounts.reduce((s, a) => s + (a.stickinessRatio ?? 0), 0) / totalAccounts) * 1000) / 1000
+    : 0;
+  const avgAutomationScore = totalAccounts > 0
+    ? Math.round(accounts.reduce((s, a) => s + (a.automationAdoptionScore ?? 0), 0) / totalAccounts)
+    : 0;
+  const avgModuleBreadth = totalAccounts > 0
+    ? Math.round((accounts.reduce((s, a) => s + (a.moduleBreadth ?? 0), 0) / totalAccounts) * 10) / 10
+    : 0;
+  const distribution = {
+    healthy: accounts.filter((a) => a.healthBucket === 'healthy').length,
+    atRisk: accounts.filter((a) => a.healthBucket === 'at-risk').length,
+    critical: accounts.filter((a) => a.healthBucket === 'critical').length,
+  };
+  const trends = {
+    improving: accounts.filter((a) => a.healthTrend === 'improving').length,
+    stable: accounts.filter((a) => a.healthTrend === 'stable').length,
+    declining: accounts.filter((a) => a.healthTrend === 'declining').length,
+  };
+  const accountsNeedingAttention = distribution.atRisk + distribution.critical;
+  const totalCriticalAlerts = accounts.reduce((s, a) => s + (a.openAlertsCritical ?? 0), 0);
+  const churnRiskOrgs = accounts.filter((a) => (a.daysSilent ?? 0) >= 30).length;
+
+  return {
+    totalAccounts,
+    avgHealthScore,
+    avgStickiness,
+    avgAutomationScore,
+    avgModuleBreadth,
+    accountsNeedingAttention,
+    churnRiskOrgs,
+    totalCriticalAlerts,
+    distribution,
+    trends,
+  };
+}
+
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
@@ -172,15 +426,19 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
         portfolioEnv.body.accounts.length > 0
       ) {
         // Normalize string epoch fields and mark as paid (CS portfolio is paid-only)
-        const normalizedAccounts = (portfolioEnv.body.accounts as Array<Record<string, unknown>>).map((acc) => ({
-          ...acc,
-          lastActivityAt: toEpochMs(acc.lastActivityAt),
-          snapshotDate: toEpochMs(acc.snapshotDate) ?? Date.now(),
-          isPaidPlan: true,
-        }));
+        const normalizedAccounts = (portfolioEnv.body.accounts as Array<Record<string, unknown>>).map((acc) => {
+          const norm = {
+            ...acc,
+            lastActivityAt: toEpochMs(acc.lastActivityAt),
+            snapshotDate: toEpochMs(acc.snapshotDate) ?? Date.now(),
+            isPaidPlan: true,
+          };
+          return enrichAccountWithCSMetrics(norm);
+        });
+        const summary = recalculateSummary(normalizedAccounts);
         res.status(200).json({
           source: 'portfolio',
-          data: { ...portfolioEnv.body, accounts: normalizedAccounts },
+          data: { ...portfolioEnv.body, summary, accounts: normalizedAccounts },
         });
         return;
       }
@@ -280,7 +538,7 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
           const a = d.adoption ?? {};
           const auto = d.automation ?? {};
           const lastModule = a.lastModuleUsed ?? a.modulesUsed?.[0] ?? null;
-          return {
+          const rawAcc = {
             organizationId: r.organizationId,
             healthScore: h.healthScore ?? 0,
             healthTrend: h.healthTrend ?? 'stable',
@@ -307,35 +565,11 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
             countryCode: p.countryCode ?? null,
             isPaidPlan: true,
           };
+          return enrichAccountWithCSMetrics(rawAcc);
         })
         .sort((a, b) => a.healthScore - b.healthScore); // worst first
 
-      const totalAccounts = validAccounts.length;
-      const avgHealthScore = totalAccounts > 0
-        ? Math.round((validAccounts.reduce((s, a) => s + a.healthScore, 0) / totalAccounts) * 10) / 10
-        : 0;
-      const avgStickiness = totalAccounts > 0
-        ? Math.round((validAccounts.reduce((s, a) => s + a.stickinessRatio, 0) / totalAccounts) * 1000) / 1000
-        : 0;
-      const avgAutomationScore = totalAccounts > 0
-        ? Math.round(validAccounts.reduce((s, a) => s + a.automationAdoptionScore, 0) / totalAccounts)
-        : 0;
-      const avgModuleBreadth = totalAccounts > 0
-        ? Math.round((validAccounts.reduce((s, a) => s + a.moduleBreadth, 0) / totalAccounts) * 10) / 10
-        : 0;
-
-      const distribution = {
-        healthy: validAccounts.filter((a) => a.healthBucket === 'healthy').length,
-        atRisk: validAccounts.filter((a) => a.healthBucket === 'at-risk').length,
-        critical: validAccounts.filter((a) => a.healthBucket === 'critical').length,
-      };
-      const trends = {
-        improving: validAccounts.filter((a) => a.healthTrend === 'improving').length,
-        stable: validAccounts.filter((a) => a.healthTrend === 'stable').length,
-        declining: validAccounts.filter((a) => a.healthTrend === 'declining').length,
-      };
-      const accountsNeedingAttention = distribution.atRisk + distribution.critical;
-      const totalCriticalAlerts = validAccounts.reduce((s, a) => s + a.openAlertsCritical, 0);
+      const summary = recalculateSummary(validAccounts);
 
       // Build module usage summary from account details
       const moduleMap = new Map<string, { label: string; orgCount: number; featureMap: Map<string, { label: string; activityCount: number; orgCount: number }> }>();
@@ -412,21 +646,7 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
         }));
 
       const synthesized = {
-        summary: {
-          totalAccounts,
-          avgHealthScore,
-          avgStickiness,
-          avgAutomationScore,
-          avgModuleBreadth,
-          accountsNeedingAttention,
-          churnRiskOrgs: validAccounts.filter((a) => {
-            const last = toEpochMs(a.lastActivityAt);
-            return last === null || Date.now() - last > 14 * 86400000;
-          }).length,
-          totalCriticalAlerts,
-          distribution,
-          trends,
-        },
+        summary,
         dailyTrend,
         moduleUsageSummary,
         accounts: validAccounts,

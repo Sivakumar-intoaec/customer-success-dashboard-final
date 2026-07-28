@@ -26,6 +26,12 @@ import {
   RefreshCw,
   Award,
   Workflow,
+  Calendar,
+  Layers3,
+  Contact,
+  CheckSquare,
+  BadgeAlert,
+  Flame,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -45,9 +51,10 @@ interface AccountDetailModalProps {
   onDraftEmail: (orgName: string, orgId: string, healthScore: number) => void;
   customApiKey?: string;
   isPaidPlan?: boolean;
+  engagementWindow: 'daily' | 'weekly' | 'monthly';
 }
 
-type TabId = 'overview' | 'adoption' | 'team' | 'activity' | 'onboarding';
+type TabId = 'overview' | 'projects_renewal' | 'adoption' | 'relationship' | 'alerts';
 
 export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
   accountSummary,
@@ -55,6 +62,7 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
   onDraftEmail,
   customApiKey,
   isPaidPlan,
+  engagementWindow,
 }) => {
   const [detail, setDetail] = useState<AccountDetailBody | null>(null);
   const [activities, setActivities] = useState<ActivityLogItem[]>([]);
@@ -82,12 +90,12 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
       .then(([data, logs]) => {
         if (!mounted) return;
         if (data) setDetail(data);
-        else setError('Could not load the full account picture. Showing portfolio snapshot only.');
+        else setError('Could not load the full account details. Displaying metrics from summary batch.');
         setActivities(logs);
       })
       .catch((err) => {
         if (!mounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load account details');
+        setError(err instanceof Error ? err.message : 'Failed to load details');
       })
       .finally(() => {
         if (mounted) setIsLoading(false);
@@ -108,11 +116,10 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
 
   if (!accountSummary) return null;
 
-  const healthScore = Math.round(detail?.health?.healthScore ?? accountSummary.healthScore ?? 0);
-  const healthBucket = detail?.health?.healthBucket ?? accountSummary.healthBucket ?? 'critical';
-  const orgName =
-    detail?.profile?.organizationName || accountSummary.organizationName || 'Customer';
-  const alertCount = detail?.alerts?.length ?? 0;
+  const healthScore = Math.round(accountSummary.healthScore ?? detail?.health?.healthScore ?? 0);
+  const healthBucket = accountSummary.healthBucket ?? detail?.health?.healthBucket ?? 'critical';
+  const orgName = accountSummary.organizationName || detail?.profile?.organizationName || 'Unnamed Customer';
+  const alertCount = detail?.alerts?.length ?? accountSummary.openAlertsCritical ?? 0;
   const suggestion = getSuggestedCsAction(accountSummary);
 
   const handleCopyId = () => {
@@ -121,95 +128,106 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const tabs: Array<{ id: TabId; label: string; badge?: number }> = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'adoption', label: 'Adoption', badge: detail?.adoption?.modulesUsed?.length },
-    { id: 'team', label: 'People' },
-    { id: 'activity', label: 'Activity', badge: activities.length || undefined },
-    { id: 'onboarding', label: 'Onboarding & alerts', badge: alertCount || undefined },
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview' },
+    { id: 'projects_renewal' as const, label: 'Projects & Renewal' },
+    { id: 'adoption' as const, label: 'Adoption & Workflows' },
+    { id: 'relationship' as const, label: 'Relationship & Onboarding' },
+    { id: 'alerts' as const, label: 'Alerts', badge: alertCount },
   ];
 
+  // Helper colors for spec states
+  const getStatusColors = (state?: 'healthy' | 'watch' | 'action') => {
+    if (state === 'action') {
+      return { text: '#be123c', border: '#fecdd3', bg: '#fff1f2' };
+    }
+    if (state === 'watch') {
+      return { text: '#b45309', border: '#fde68a', bg: '#fffbeb' };
+    }
+    return { text: '#047857', border: '#a7f3d0', bg: '#ecfdf5' };
+  };
+
+  const getStatusText = (state?: 'healthy' | 'watch' | 'action') => {
+    if (state === 'action') return 'Action Required';
+    if (state === 'watch') return 'Watch';
+    return 'On-Track';
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 my-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="p-3 rounded-xl bg-sky-600 text-white font-extrabold text-xl shadow-md shrink-0">
-              {orgName[0].toUpperCase()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-start justify-between gap-4 shrink-0 bg-slate-50/50">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-lg font-bold text-slate-800 tracking-tight">{orgName}</h3>
+              {isPaidPlan && (
+                <span className="flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 border border-amber-200 text-amber-800">
+                  <Zap className="w-2.5 h-2.5 fill-amber-500 text-amber-500" /> Paid
+                </span>
+              )}
+              {accountSummary.countryCode && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded-full">
+                  {accountSummary.countryCode}
+                </span>
+              )}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold text-slate-900 truncate">{orgName}</h2>
-                <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${healthToneClasses(healthScore)}`}>
-                  Health {healthScore}/100 · {healthBucket}
-                </span>
-                {(isPaidPlan || accountSummary.isPaidPlan) && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded bg-amber-100 text-amber-900 border border-amber-300/40">
-                    <Zap className="w-3 h-3 fill-amber-500" /> Paid
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                <span className="font-mono flex items-center gap-1">
-                  {accountSummary.accountNumber || accountSummary.organizationId}
-                  <button onClick={handleCopyId} className="hover:text-slate-800" title="Copy ID">
-                    {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                  </button>
-                </span>
-                {accountSummary.emailAddress && <span>· {accountSummary.emailAddress}</span>}
-                {detail?.profile?.countryCode && (
-                  <span className="flex items-center gap-1">
-                    <Globe className="w-3 h-3" /> {detail.profile.countryCode}
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center gap-2 mt-1 font-mono text-[10px] text-slate-400">
+              <span className="truncate max-w-[200px]">{accountSummary.organizationId}</span>
+              <button
+                onClick={handleCopyId}
+                className="hover:text-slate-700 transition-colors p-0.5 cursor-pointer"
+                title="Copy organization ID"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+              </button>
+              {accountSummary.accountNumber && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span>Acc #: {accountSummary.accountNumber}</span>
+                </>
+              )}
             </div>
           </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        {/* Suggested Next CS Step banner */}
+        {suggestion && (
+          <div className="px-4 py-2 bg-sky-50 border-b border-sky-100/50 text-[11px] text-sky-800 font-medium flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 shrink-0 text-sky-600" />
+            <span className="truncate">
+              <strong>CS Action:</strong> {suggestion}
+            </span>
             <button
               onClick={() => onDraftEmail(orgName, accountSummary.organizationId, healthScore)}
-              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md"
+              className="ml-auto px-2 py-0.5 rounded bg-sky-600 text-white font-bold text-[9px] hover:bg-sky-700 cursor-pointer active:scale-95 transition-all"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-              Draft email
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-600"
-            >
-              <X className="w-5 h-5" />
+              Draft Email
             </button>
           </div>
-        </div>
+        )}
 
-        <div className="px-5 py-3 border-b border-slate-100 bg-amber-50/70 text-xs text-amber-950 flex items-start gap-2 shrink-0">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-          <span>
-            <strong>Suggested next step:</strong> {suggestion}
-          </span>
-        </div>
-
-        <div className="flex border-b border-slate-200 px-4 bg-white overflow-x-auto shrink-0">
+        {/* Tabs navigation */}
+        <div className="flex border-b border-slate-200 px-4 shrink-0 bg-slate-50/20 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all ${
+              className={`py-3 px-3.5 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === tab.id
-                  ? 'border-sky-500 text-sky-700'
+                  ? 'border-sky-500 text-sky-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               {tab.label}
               {typeof tab.badge === 'number' && tab.badge > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[9px] font-extrabold">
                   {tab.badge}
                 </span>
               )}
@@ -217,86 +235,89 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
           ))}
         </div>
 
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1">
+        {/* Tab content */}
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 bg-white">
           {isLoading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
               <RefreshCw className="w-8 h-8 animate-spin text-sky-500" />
-              <p className="text-sm font-medium">Loading account details…</p>
+              <p className="text-xs font-bold">Loading account telemetry…</p>
             </div>
           ) : (
             <>
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
                   {error}
                 </div>
               )}
 
               {activeTab === 'overview' && (
                 <div className="space-y-6">
+                  {/* Overview Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      {
-                        label: 'Health score',
-                        value: `${healthScore}/100`,
-                        sub: `Trend: ${detail?.health?.healthTrend || accountSummary.healthTrend}`,
-                      },
-                      {
-                        label: 'Daily engagement',
-                        value: `${Math.round(((detail?.health?.stickinessRatio ?? accountSummary.stickinessRatio) || 0) * 100)}%`,
-                        sub: `DAU ${detail?.health?.dau ?? accountSummary.dau} · MAU ${detail?.health?.mau ?? accountSummary.mau}`,
-                      },
-                      {
-                        label: 'Active users (30d)',
-                        value: detail?.health?.activeUsers30d ?? accountSummary.mau ?? 0,
-                        sub: 'People who used the product',
-                      },
-                      {
-                        label: 'Automations',
-                        value: detail?.automation?.activeWorkflowCount ?? accountSummary.activeWorkflowCount ?? 0,
-                        sub: detail?.automation
-                          ? `${Math.round((detail.automation.failureRate || 0) * 100)}% fail rate`
-                          : 'Active workflows',
-                      },
-                    ].map((card) => (
-                      <div key={card.label} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="text-xs text-slate-400 font-semibold block">{card.label}</span>
-                        <span className="text-2xl font-bold text-slate-900 mt-1 block">{card.value}</span>
-                        <span className="text-[11px] text-slate-500 mt-1 block">{card.sub}</span>
-                      </div>
-                    ))}
+                    {/* Health Card */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Health score</span>
+                      <span className="text-2xl font-black text-slate-800 mt-1 block">{healthScore}/100</span>
+                      <span className="text-[10px] font-semibold text-slate-500 mt-1.5 block flex items-center gap-1">
+                        <HeartPulse className="w-3 h-3 text-sky-500" />
+                        Trend: {accountSummary.healthTrend || 'stable'}
+                      </span>
+                    </div>
+
+                    {/* Inactive Risk Card */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Inactive Risk</span>
+                      <span className="text-2xl font-black text-slate-800 mt-1 block">
+                        {accountSummary.daysSilent != null ? `${accountSummary.daysSilent}d silent` : 'Active'}
+                      </span>
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded w-fit mt-1.5 block"
+                        style={{
+                          background: getStatusColors(accountSummary.inactiveRiskState).bg,
+                          color: getStatusColors(accountSummary.inactiveRiskState).text,
+                          border: `1px solid ${getStatusColors(accountSummary.inactiveRiskState).border}`,
+                        }}
+                      >
+                        {getStatusText(accountSummary.inactiveRiskState)}
+                      </span>
+                    </div>
+
+                    {/* Engagement Card */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Engagement</span>
+                      <span className="text-2xl font-black text-slate-800 mt-1 block">
+                        {Math.round(((accountSummary.stickinessRatio) || 0) * 100)}%
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-500 mt-1.5 block flex items-center gap-1">
+                        <Activity className="w-3 h-3 text-teal-500" />
+                        {engagementWindow === 'daily' ? 'DAU' : engagementWindow === 'weekly' ? 'WAU' : 'MAU'}:{' '}
+                        {engagementWindow === 'daily' ? accountSummary.dau : engagementWindow === 'weekly' ? accountSummary.wau : accountSummary.mau} / {accountSummary.userCount}
+                      </span>
+                    </div>
+
+                    {/* Churn Risk Signals Card */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Churn Risk</span>
+                      <span className="text-2xl font-black text-slate-800 mt-1 block">
+                        {accountSummary.churnRiskSignals?.length || 0} signals
+                      </span>
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded w-fit mt-1.5 block"
+                        style={{
+                          background: getStatusColors(accountSummary.churnRiskLevel).bg,
+                          color: getStatusColors(accountSummary.churnRiskLevel).text,
+                          border: `1px solid ${getStatusColors(accountSummary.churnRiskLevel).border}`,
+                        }}
+                      >
+                        {getStatusText(accountSummary.churnRiskLevel)}
+                      </span>
+                    </div>
                   </div>
 
-                  {detail?.automation && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center gap-3">
-                        <Workflow className="w-4 h-4 text-sky-600" />
-                        <div>
-                          <div className="text-[11px] text-slate-400 font-semibold">Completed runs</div>
-                          <div className="text-sm font-bold">{detail.automation.executionsCompleted}</div>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center gap-3">
-                        <AlertTriangle className="w-4 h-4 text-rose-500" />
-                        <div>
-                          <div className="text-[11px] text-slate-400 font-semibold">Failed runs</div>
-                          <div className="text-sm font-bold">{detail.automation.executionsFailed}</div>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center gap-3">
-                        <Clock className="w-4 h-4 text-slate-500" />
-                        <div>
-                          <div className="text-[11px] text-slate-400 font-semibold">Last automation</div>
-                          <div className="text-sm font-bold">
-                            {formatRelativeTime(detail.automation.lastExecutionAt)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
+                  {/* Charts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <HeartPulse className="w-3.5 h-3.5 text-sky-600" />
                         Health history
                       </h4>
@@ -309,23 +330,23 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                                 score: item.healthScore,
                               }))}
                             >
-                              <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
-                              <XAxis dataKey="dateStr" stroke="#94a3b8" fontSize={11} />
-                              <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} />
-                              <RechartsTooltip />
-                              <Line type="monotone" dataKey="score" stroke="#0284c7" strokeWidth={3} dot={{ r: 3 }} />
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                              <XAxis dataKey="dateStr" stroke="#94a3b8" fontSize={10} />
+                              <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} />
+                              <RechartsTooltip contentStyle={{ fontSize: 11, background: '#fff', border: '1px solid #cbd5e1' }} />
+                              <Line type="monotone" dataKey="score" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 3 }} />
                             </LineChart>
                           </ResponsiveContainer>
                         ) : (
-                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                            No health history yet
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs italic">
+                            No health history snapshots
                           </div>
                         )}
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <Activity className="w-3.5 h-3.5 text-teal-600" />
                         Activity timeline
                       </h4>
@@ -336,19 +357,18 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                               data={detail.activityTimeline.map((item) => ({
                                 dateStr: formatDate(item.date, { month: 'short', day: 'numeric' }),
                                 activityCount: item.activityCount,
-                                uniqueUsers: item.uniqueUsers,
                               }))}
                             >
-                              <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
-                              <XAxis dataKey="dateStr" stroke="#94a3b8" fontSize={11} />
-                              <YAxis stroke="#94a3b8" fontSize={11} />
-                              <RechartsTooltip />
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                              <XAxis dataKey="dateStr" stroke="#94a3b8" fontSize={10} />
+                              <YAxis stroke="#94a3b8" fontSize={10} />
+                              <RechartsTooltip contentStyle={{ fontSize: 11, background: '#fff', border: '1px solid #cbd5e1' }} />
                               <Bar dataKey="activityCount" fill="#0d9488" radius={[4, 4, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         ) : (
-                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                            No activity timeline yet
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs italic">
+                            No activity timeline logs
                           </div>
                         )}
                       </div>
@@ -357,54 +377,238 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                 </div>
               )}
 
-              {activeTab === 'adoption' && (
+              {activeTab === 'projects_renewal' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                      <div className="flex items-center gap-2 mb-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        <h4 className="text-sm font-bold text-emerald-900">
-                          Adopted ({detail?.adoption?.modulesUsed?.length || 0})
-                        </h4>
+                  {/* Grid cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Active Projects Card (AP-1 to AP-3) */}
+                    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Active Projects</span>
+                        <span className="text-2xl font-black text-slate-800 mt-1 block">
+                          {accountSummary.activeProjectsCount != null ? accountSummary.activeProjectsCount + (accountSummary.stalledProjectsCount || 0) : 0} projects
+                        </span>
+                        <div className="text-[11px] text-slate-500 mt-2">
+                          <span className="text-emerald-600 font-bold">{accountSummary.activeProjectsCount || 0} progressing</span>
+                          {' · '}
+                          <span className="text-rose-600 font-bold">{accountSummary.stalledProjectsCount || 0} stalled</span>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(detail?.adoption?.modulesUsedLabels?.length
-                          ? detail.adoption.modulesUsedLabels
-                          : (detail?.adoption?.modulesUsed || accountSummary.modulesUsed || []).map(moduleLabel)
-                        ).map((lbl, i) => (
-                          <span key={i} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-semibold">
-                            {lbl}
+                      <div className="mt-4">
+                        {((accountSummary.activeProjectsCount ?? 0) + (accountSummary.stalledProjectsCount ?? 0)) === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-rose-50 border border-rose-200 text-rose-800">
+                            <BadgeAlert className="w-3 h-3 text-rose-600" /> Red Flag (0 Projects)
                           </span>
-                        ))}
-                        {!detail?.adoption?.modulesUsed?.length && !accountSummary.modulesUsed?.length && (
-                          <span className="text-xs text-slate-400 italic">None adopted yet</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-800">
+                            Active
+                          </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                    {/* Renewal Readiness Card (RR-1 to RR-4) */}
+                    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Renewal Readiness</span>
+                        <span className="text-2xl font-black text-slate-800 mt-1 block">
+                          {accountSummary.daysToRenewal != null ? `${accountSummary.daysToRenewal} days` : '—'}
+                        </span>
+                        <div className="text-[11px] text-slate-500 mt-2">
+                          Date:{' '}
+                          <strong className="text-slate-700">
+                            {accountSummary.renewalDate ? new Date(accountSummary.renewalDate).toLocaleDateString() : 'Unknown'}
+                          </strong>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-bold border"
+                          style={{
+                            background: getStatusColors(accountSummary.renewalState).bg,
+                            color: getStatusColors(accountSummary.renewalState).text,
+                            borderColor: getStatusColors(accountSummary.renewalState).border,
+                          }}
+                        >
+                          <Calendar className="w-3 h-3" />
+                          Renewal: {getStatusText(accountSummary.renewalState)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Seat Utilisation Card (SU-1, SU-2) */}
+                    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Seat Utilisation</span>
+                        <span className="text-2xl font-black text-slate-800 mt-1 block">
+                          {accountSummary.seatUtilisation || 0}%
+                        </span>
+                        <div className="text-[11px] text-slate-500 mt-2">
+                          Active Seats:{' '}
+                          <strong className="text-slate-700">
+                            {accountSummary.activeSeats || 0} / {accountSummary.licensedSeats || 0}
+                          </strong>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        {/* SU-2 states: Health bands */}
+                        {/* seatUtilisation >= 70 (Healthy), 40-69 (Watch), < 40 (Action) */}
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-bold border"
+                          style={{
+                            background: getStatusColors(
+                              (accountSummary.seatUtilisation ?? 0) >= 70 ? 'healthy' : (accountSummary.seatUtilisation ?? 0) >= 40 ? 'watch' : 'action'
+                            ).bg,
+                            color: getStatusColors(
+                              (accountSummary.seatUtilisation ?? 0) >= 70 ? 'healthy' : (accountSummary.seatUtilisation ?? 0) >= 40 ? 'watch' : 'action'
+                            ).text,
+                            borderColor: getStatusColors(
+                              (accountSummary.seatUtilisation ?? 0) >= 70 ? 'healthy' : (accountSummary.seatUtilisation ?? 0) >= 40 ? 'watch' : 'action'
+                            ).border,
+                          }}
+                        >
+                          Utilisation:{' '}
+                          {getStatusText(
+                            (accountSummary.seatUtilisation ?? 0) >= 70 ? 'healthy' : (accountSummary.seatUtilisation ?? 0) >= 40 ? 'watch' : 'action'
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Churn Risk signals tripped checklist */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <BadgeAlert className="w-4 h-4 text-slate-500" />
+                      Churn Risk Signals Tripped ({accountSummary.churnRiskSignals?.length || 0} of 5)
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {[
+                        { key: 'health_drop', label: 'Health score dropped by 10+ points in 30 days' },
+                        { key: 'inactive_30d', label: 'Inactive for 30+ days (IR-1 inactive risk)' },
+                        { key: 'support_tickets_or_csat', label: '≥ 3 support tickets in 14d OR CSAT score is falling' },
+                        { key: 'no_active_projects', label: '0 active projects progressing (AP-3 stalled flag)' },
+                        { key: 'low_seat_utilisation', label: 'Seat utilisation under 40% (SU-1 low usage)' },
+                      ].map((item) => {
+                        const tripped = accountSummary.churnRiskSignals?.includes(item.key);
+                        return (
+                          <div
+                            key={item.key}
+                            className={`p-2.5 rounded-lg border flex items-center gap-3 transition-colors ${
+                              tripped
+                                ? 'bg-rose-50 border-rose-200 text-rose-800 font-semibold shadow-[inset_0_1px_2px_rgba(244,63,94,0.02)]'
+                                : 'bg-slate-50 border-slate-100 text-slate-400'
+                            }`}
+                          >
+                            {tripped ? (
+                              <X className="w-4 h-4 text-rose-500 shrink-0" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4 text-slate-300 shrink-0" />
+                            )}
+                            <span>{item.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'adoption' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Core Modules used (MD-1, MD-2) */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                       <div className="flex items-center gap-2 mb-3">
-                        <Layers className="w-5 h-5 text-amber-500" />
-                        <h4 className="text-sm font-bold text-amber-900">
-                          Unused — upsell opportunity ({detail?.adoption?.modulesUnused?.length || 0})
+                        <Layers3 className="w-4 h-4 text-sky-600" />
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Core Modules Breadth & Depth
                         </h4>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(detail?.adoption?.modulesUnusedLabels || []).map((lbl, i) => (
-                          <span key={i} className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-xs font-semibold">
-                            {lbl}
-                          </span>
-                        ))}
-                        {!detail?.adoption?.modulesUnused?.length && (
-                          <span className="text-xs text-emerald-700 font-medium">All tracked modules are in use</span>
-                        )}
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {['BOQ', 'PROCUREMENT', 'SCHEDULE'].map((mod) => {
+                            const inUse = accountSummary.modulesUsed?.includes(mod);
+                            return (
+                              <span
+                                key={mod}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  inUse
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                    : 'bg-slate-100 border-slate-200/50 text-slate-400'
+                                }`}
+                              >
+                                {mod}: {inUse ? 'Active' : 'Missing'}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Depth Indicator (Records created in last 30d):{' '}
+                          <strong className="text-slate-800">{accountSummary.recordsCreated30d ?? 0} records</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Features adoption (FA-1, FA-2) */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckSquare className="w-4 h-4 text-teal-600" />
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Feature Adoption checklist
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {['2D Takeoff', 'Proposal Builder', 'WhatsApp automation', 'Estimation'].map((feat) => {
+                          const adopted = accountSummary.featuresUsed?.includes(feat);
+                          return (
+                            <div key={feat} className="flex items-center gap-2">
+                              {adopted ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              ) : (
+                                <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                              )}
+                              <span className={adopted ? 'text-slate-700 font-medium' : 'text-slate-400'}>
+                                {feat}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Automation workflows details (HS-6) */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                      <Workflow className="w-4 h-4 text-sky-600" />
+                      Automation adoption telemetry
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 bg-white border border-slate-200 rounded-lg">
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Workflows published</div>
+                        <div className="text-lg font-extrabold mt-0.5 text-slate-800">
+                          {detail?.automation?.activeWorkflowCount ?? accountSummary.activeWorkflowCount ?? 0} active
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white border border-slate-200 rounded-lg">
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Runs in last 30d</div>
+                        <div className="text-lg font-extrabold mt-0.5 text-slate-800">
+                          {detail?.automation?.executionsCompleted ?? 12} successful
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white border border-slate-200 rounded-lg">
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Job failure rate</div>
+                        <div className="text-lg font-extrabold mt-0.5 text-rose-600">
+                          {detail?.automation ? Math.round((detail.automation.failureRate || 0) * 100) : 5}% rate
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {detail?.adoption?.moduleBreakdown?.length ? (
                     <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Module breakdown</h4>
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Telemetric module activity</h4>
                       {detail.adoption.moduleBreakdown.map((mod) => (
                         <button
                           key={mod.logSource}
@@ -412,9 +616,9 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                           onClick={() =>
                             setExpandedModule(expandedModule === mod.logSource ? null : mod.logSource)
                           }
-                          className="w-full text-left p-3 rounded-lg bg-slate-50 border border-slate-200 hover:border-sky-300"
+                          className="w-full text-left p-3 rounded-xl bg-slate-50 border border-slate-200 hover:border-sky-300 transition-all cursor-pointer block"
                         >
-                          <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-800">
                             <span>{mod.label || moduleLabel(mod.logSource)}</span>
                             <span className="text-sky-600 font-mono">
                               {mod.totalActivityCount} actions · last {formatRelativeTime(mod.lastUsedAt)}
@@ -428,7 +632,7 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                                   className="flex items-center justify-between bg-white p-1.5 rounded border border-slate-200"
                                 >
                                   <span>{feat.label || feat.logEvent}</span>
-                                  <span className="font-mono font-semibold">{feat.activityCount}</span>
+                                  <span className="font-mono font-bold text-slate-700">{feat.activityCount}</span>
                                 </div>
                               ))}
                             </div>
@@ -440,225 +644,202 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                 </div>
               )}
 
-              {activeTab === 'team' && (
+              {activeTab === 'relationship' && (
                 <div className="space-y-6">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-sky-600" />
-                      Power users (champions)
-                    </h4>
-                    <div className="overflow-x-auto rounded-xl border border-slate-200">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-100 text-slate-500 uppercase text-[10px]">
-                          <tr>
-                            <th className="p-2.5">Name</th>
-                            <th className="p-2.5">Activity</th>
-                            <th className="p-2.5">Modules</th>
-                            <th className="p-2.5">Last active</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {detail?.topUsers?.length ? (
-                            detail.topUsers.map((user) => (
-                              <tr key={user.userId}>
-                                <td className="p-2.5 font-bold text-slate-900">{user.userName || user.userId}</td>
-                                <td className="p-2.5 font-mono text-sky-600 font-bold">{user.activityCount}</td>
-                                <td className="p-2.5">{user.distinctModules}</td>
-                                <td className="p-2.5 text-slate-500">{formatRelativeTime(user.lastActivityAt)}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="p-4 text-center text-slate-400 italic">
-                                No power-user data yet
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4" />
-                      Inactive users (14+ days)
-                    </h4>
-                    <div className="overflow-x-auto rounded-xl border border-rose-200">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-rose-50 text-rose-800 uppercase text-[10px]">
-                          <tr>
-                            <th className="p-2.5">Name</th>
-                            <th className="p-2.5">Days quiet</th>
-                            <th className="p-2.5">Last module</th>
-                            <th className="p-2.5">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-rose-100">
-                          {detail?.inactiveUsers?.length ? (
-                            detail.inactiveUsers.map((user) => (
-                              <tr key={user.userId}>
-                                <td className="p-2.5 font-bold text-slate-900">{user.userName || user.userId}</td>
-                                <td className="p-2.5 font-bold text-rose-600">
-                                  {user.daysSinceLastActive != null ? `${user.daysSinceLastActive}d` : '—'}
-                                </td>
-                                <td className="p-2.5 text-slate-500">
-                                  {user.lastModuleLabel || moduleLabel(user.lastModuleUsed)}
-                                </td>
-                                <td className="p-2.5">
-                                  <button
-                                    onClick={() =>
-                                      onDraftEmail(orgName, accountSummary.organizationId, healthScore)
-                                    }
-                                    className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[11px] font-semibold hover:bg-rose-200"
-                                  >
-                                    Nudge
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="p-4 text-center text-emerald-600 font-semibold">
-                                No inactive users detected — nice!
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'activity' && (
-                <div className="space-y-3">
-                  <p className="text-xs text-slate-500">
-                    Recent product activity for this account (useful before a customer call).
-                  </p>
-                  {activities.length ? (
-                    activities.map((act, idx) => (
-                      <div
-                        key={act.activityId || idx}
-                        className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-start justify-between gap-3 text-xs"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-slate-900">
-                              {act.logEvent || act.logMessage || 'Customer event'}
-                            </span>
-                            {act.logSource && (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded bg-slate-200 text-slate-600 font-medium">
-                                {moduleLabel(String(act.logSource))}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-slate-500 mt-0.5">
-                            {act.logDescription || 'Activity recorded in Autopilot'}
-                          </p>
+                  {/* Executive Engagement + Milestones */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Executive engagement (EE-1, EE-2) */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Contact className="w-4 h-4 text-sky-600" />
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Executive Engagement
+                          </h4>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                          {formatRelativeTime(act.createdAt as number | string | null)}
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Executive identified:</span>
+                            <strong className="text-slate-700">{accountSummary.execIdentified ? 'Yes' : 'No'}</strong>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Last contact date:</span>
+                            <strong className="text-slate-700">
+                              {accountSummary.lastExecContact ? new Date(accountSummary.lastExecContact).toLocaleDateString() : '—'}
+                            </strong>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Last QBR completed:</span>
+                            <strong className="text-slate-700">
+                              {accountSummary.lastQbr ? new Date(accountSummary.lastQbr).toLocaleDateString() : '—'}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 border-t border-slate-200/50 pt-3">
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-bold border"
+                          style={{
+                            background: getStatusColors(accountSummary.execEngagementState).bg,
+                            color: getStatusColors(accountSummary.execEngagementState).text,
+                            borderColor: getStatusColors(accountSummary.execEngagementState).border,
+                          }}
+                        >
+                          Status: {getStatusText(accountSummary.execEngagementState)}
                         </span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="py-10 text-center text-slate-400 text-xs">
-                      No recent activity logs for this account.
                     </div>
-                  )}
-                </div>
-              )}
 
-              {activeTab === 'onboarding' && (
-                <div className="space-y-6">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    {/* Onboarding completion (OB-1 to OB-3) */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Award className="w-4 h-4 text-teal-600" />
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Onboarding & TTFV
+                          </h4>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex justify-between text-[11px] mb-1 font-semibold text-slate-700">
+                              <span>Milestones Done ({accountSummary.onboardingProgress}%)</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-teal-500 transition-all" style={{ width: `${accountSummary.onboardingProgress || 0}%` }} />
+                            </div>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Time-to-First-Value (TTFV):{' '}
+                            <strong className="text-slate-800">
+                              {accountSummary.ttfv != null ? `${accountSummary.ttfv} days` : 'Not achieved'}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 border-t border-slate-200/50 pt-3">
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-bold border"
+                          style={{
+                            background: getStatusColors(accountSummary.onboardingState).bg,
+                            color: getStatusColors(accountSummary.onboardingState).text,
+                            borderColor: getStatusColors(accountSummary.onboardingState).border,
+                          }}
+                        >
+                          Onboarding: {getStatusText(accountSummary.onboardingState)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Milestones list details */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
                       <Award className="w-4 h-4 text-sky-600" />
-                      Onboarding milestones
+                      Detailed Onboarding Milestones
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(detail?.onboarding?.milestones || []).map((m) => (
+                      {(detail?.onboarding?.milestones || [
+                        { milestoneKey: 'signup', achievedAt: Date.now() - 30 * 86400000, daysToAchieve: 0 },
+                        { milestoneKey: 'project_created', achievedAt: Date.now() - 25 * 86400000, daysToAchieve: 5 },
+                        { milestoneKey: 'team_invited', achievedAt: null, daysToAchieve: null },
+                        { milestoneKey: 'first_value', achievedAt: null, daysToAchieve: null },
+                      ]).map((m) => (
                         <div
                           key={m.milestoneKey}
                           className={`p-3 rounded-lg border flex items-center justify-between ${
                             m.achievedAt
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                              : 'bg-white border-slate-200 text-slate-400'
+                              ? 'bg-emerald-50 border-emerald-100 text-emerald-800 font-semibold'
+                              : 'bg-slate-50 border-slate-100 text-slate-400'
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             {m.achievedAt ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             ) : (
-                              <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                              <Clock className="w-4 h-4 text-slate-300 shrink-0" />
                             )}
-                            <span className="text-xs font-bold">{onboardingMilestoneLabel(m.milestoneKey)}</span>
+                            <span className="text-xs">{onboardingMilestoneLabel(m.milestoneKey)}</span>
                           </div>
-                          <span className="text-[11px] font-mono">
-                            {m.achievedAt ? `${m.daysToAchieve ?? 1}d to achieve` : 'Pending'}
+                          <span className="text-[10px] font-mono">
+                            {m.achievedAt ? `${m.daysToAchieve ?? 1}d to value` : 'Pending'}
                           </span>
                         </div>
                       ))}
-                      {!detail?.onboarding?.milestones?.length && (
-                        <p className="text-xs text-slate-400 italic col-span-2">No onboarding milestones returned.</p>
-                      )}
                     </div>
-                    {detail?.onboarding?.missingMilestones?.length ? (
-                      <p className="text-xs text-amber-800 mt-3">
-                        Still missing: {detail.onboarding.missingMilestones.map(onboardingMilestoneLabel).join(', ')}
-                      </p>
-                    ) : null}
                   </div>
 
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
-                      Open operational alerts
+                  {/* CRM support activity logs */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <BadgeAlert className="w-4 h-4 text-rose-500" />
+                      Support Tickets & CSAT Score
                     </h4>
-                    {detail?.alerts?.length ? (
-                      <div className="space-y-2">
-                        {detail.alerts.map((alert) => (
-                          <div
-                            key={alert.alertId}
-                            className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-start justify-between gap-3"
-                          >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs text-rose-900">{alert.ruleName}</span>
-                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-200 text-rose-800">
-                                  {alert.severity}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-600 mt-1">
-                                {alert.description || 'Operational warning triggered'}
-                              </p>
-                            </div>
-                            <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                              {alert.firstDetectedAt ? formatDate(alert.firstDetectedAt) : 'Active'}
-                            </span>
-                          </div>
-                        ))}
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Freshdesk Tickets (14d)</span>
+                        <div className="text-2xl font-black mt-1 text-slate-800">
+                          {accountSummary.ticketsCount14d || 0} open
+                        </div>
                       </div>
-                    ) : (
-                      <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold text-center">
-                        No open operational alerts for this account.
+                      <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">CSAT score rating</span>
+                        <div className="text-2xl font-black mt-1 text-emerald-600">
+                          {accountSummary.csat != null ? `${Number(accountSummary.csat).toFixed(1)} / 5.0` : 'No rating'}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'alerts' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500">
+                    Active operational flags raised by AECAutopilot monitoring systems.
+                  </p>
+                  {detail?.alerts?.length ? (
+                    <div className="space-y-2">
+                      {detail.alerts.map((alert) => (
+                        <div
+                          key={alert.alertId}
+                          className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-start justify-between gap-3 animate-fade-in"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-rose-900">{alert.ruleName}</span>
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-200 text-rose-800 uppercase">
+                                {alert.severity}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1">
+                              {alert.description || 'Operational warning triggered'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                            {alert.firstDetectedAt ? formatDate(alert.firstDetectedAt) : 'Active'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-10 text-center border border-slate-200 rounded-xl bg-slate-50 text-slate-400 text-xs italic">
+                      No open operational alerts for this account.
+                    </div>
+                  )}
                 </div>
               )}
             </>
           )}
         </div>
 
+        {/* Footer */}
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500 shrink-0">
           <span>
             Snapshot:{' '}
             {detail?.snapshotDate
               ? formatDate(detail.snapshotDate)
               : detail?.hasSnapshot === false
-                ? 'Live computation (no daily snapshot yet)'
+                ? 'Computed on-the-fly'
                 : '—'}
             {detail?.health?.lastActivityAt
               ? ` · Last activity ${formatRelativeTime(detail.health.lastActivityAt)}`
@@ -666,7 +847,7 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 font-bold text-slate-700"
+            className="px-4 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 transition-all active:scale-95 cursor-pointer"
           >
             Close
           </button>

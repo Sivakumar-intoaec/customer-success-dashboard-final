@@ -11,7 +11,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend,
 } from 'recharts';
 import { TrendingUp, PieChart as PieIcon, Info } from 'lucide-react';
 
@@ -22,10 +21,10 @@ interface HealthDistributionChartProps {
 }
 
 const CARD_STYLE: React.CSSProperties = {
-  background: 'linear-gradient(135deg, #111827 0%, #0f172a 100%)',
-  border: '1px solid rgba(51,65,85,0.6)',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
   borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+  boxShadow: '0 4px 20px rgba(148, 163, 184, 0.08)',
 };
 
 export const HealthDistributionChart: React.FC<HealthDistributionChartProps> = ({
@@ -64,26 +63,26 @@ export const HealthDistributionChart: React.FC<HealthDistributionChartProps> = (
   });
 
   const tooltipStyle: React.CSSProperties = {
-    backgroundColor: '#0f172a',
-    border: '1px solid rgba(51,65,85,0.8)',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
     borderRadius: 10,
-    color: '#e2e8f0',
+    color: '#1e293b',
     fontSize: 12,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+    boxShadow: '0 4px 12px rgba(148, 163, 184, 0.12)',
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Pie chart */}
-      <div className="lg:col-span-5 p-5" style={CARD_STYLE}>
+      <div className="lg:col-span-5 p-5 bg-white border border-slate-200 rounded-2xl shadow-sm animate-fade-in" style={CARD_STYLE}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: 'rgba(14,165,233,0.1)' }}>
-              <PieIcon className="w-4 h-4 text-sky-400" />
+            <div className="p-1.5 rounded-lg border border-slate-100 bg-sky-50">
+              <PieIcon className="w-4 h-4 text-sky-600" />
             </div>
-            <h3 className="text-sm font-bold text-slate-100">Health distribution</h3>
+            <h3 className="text-sm font-bold text-slate-800">Health distribution</h3>
           </div>
-          <span className="text-[11px] text-slate-500 cursor-pointer hover:text-slate-300" onClick={() => onSelectBucket?.('all')}>
+          <span className="text-[10px] font-semibold text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" onClick={() => onSelectBucket?.('all')}>
             Click a slice to filter
           </span>
         </div>
@@ -103,73 +102,67 @@ export const HealthDistributionChart: React.FC<HealthDistributionChartProps> = (
                   const item = pieData[index];
                   if (item) onSelectBucket?.(item.bucket);
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer animate-fade-in"
                 strokeWidth={0}
               >
                 {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} opacity={0.9} />
+                  <Cell key={`cell-${index}`} fill={entry.color} opacity={0.95} />
                 ))}
               </Pie>
               <RechartsTooltip
                 formatter={(value: number) => [`${value} Accounts`, 'Count']}
                 contentStyle={tooltipStyle}
-                labelStyle={{ color: '#94a3b8' }}
+                labelStyle={{ color: '#64748b' }}
               />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-3xl font-black text-white">{summary.totalAccounts}</span>
-            <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-500">Accounts</span>
+            <span className="text-3xl font-black text-slate-800">{summary.totalAccounts}</span>
+            <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400">Accounts</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800">
+        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100">
           {[
-            { label: 'Healthy', count: distribution.healthy, color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.25)', bucket: 'healthy' as const },
-            { label: 'At Risk', count: distribution.atRisk, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)', bucket: 'at-risk' as const },
-            { label: 'Critical', count: distribution.critical, color: '#f43f5e', bg: 'rgba(244,63,94,0.08)', border: 'rgba(244,63,94,0.25)', bucket: 'critical' as const },
+            { label: 'Healthy', count: distribution.healthy, color: '#047857', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.18)', bucket: 'healthy' as const },
+            { label: 'At Risk', count: distribution.atRisk, color: '#b45309', bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.18)', bucket: 'at-risk' as const },
+            { label: 'Critical', count: distribution.critical, color: '#b91c1c', bg: 'rgba(244,63,94,0.06)', border: 'rgba(244,63,94,0.18)', bucket: 'critical' as const },
           ].map((b) => (
             <button
               key={b.bucket}
               onClick={() => onSelectBucket?.(b.bucket)}
-              className="p-2 rounded-xl text-left transition-all hover:scale-[1.04]"
+              className="p-2 rounded-xl text-left transition-all hover:scale-[1.03] cursor-pointer"
               style={{ background: b.bg, border: `1px solid ${b.border}` }}
             >
               <div className="text-base font-black" style={{ color: b.color }}>{b.count}</div>
-              <div className="text-[10px] font-medium text-slate-400">{b.label}</div>
+              <div className="text-[10px] font-bold text-slate-500">{b.label}</div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Trend line chart */}
-      <div className="lg:col-span-7 p-5" style={CARD_STYLE}>
+      <div className="lg:col-span-7 p-5 bg-white border border-slate-200 rounded-2xl shadow-sm animate-fade-in" style={CARD_STYLE}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: 'rgba(14,165,233,0.1)' }}>
-              <TrendingUp className="w-4 h-4 text-sky-400" />
+            <div className="p-1.5 rounded-lg border border-slate-100 bg-sky-50">
+              <TrendingUp className="w-4 h-4 text-sky-600" />
             </div>
-            <h3 className="text-sm font-bold text-slate-100">Portfolio trend</h3>
+            <h3 className="text-sm font-bold text-slate-800">Portfolio trend</h3>
           </div>
-          <span className="text-[11px] text-slate-500">Last {formattedTrendData.length > 0 ? `${formattedTrendData.length} days` : '14 days'}</span>
+          <span className="text-[10px] font-semibold text-slate-400">Last {formattedTrendData.length > 0 ? `${formattedTrendData.length} days` : '14 days'}</span>
         </div>
 
         <div className="h-56 w-full">
           {formattedTrendData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={formattedTrendData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(51,65,85,0.4)" />
-                <XAxis dataKey="dateStr" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 100]} stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="dateStr" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
                 <RechartsTooltip
                   contentStyle={tooltipStyle}
-                  labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
+                  labelStyle={{ color: '#64748b', marginBottom: 4 }}
                   formatter={(value: number, name: string) => [
                     name === 'avgHealthScore' ? `${value}/100` : `${value}%`,
                     name === 'avgHealthScore' ? 'Avg Health Score' : 'Engagement (DAU/MAU)',
@@ -196,30 +189,30 @@ export const HealthDistributionChart: React.FC<HealthDistributionChartProps> = (
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-8">
-              <div className="p-3 rounded-full" style={{ background: 'rgba(14,165,233,0.08)' }}>
-                <TrendingUp className="w-6 h-6 text-slate-600" />
+              <div className="p-3 rounded-full bg-slate-50 border border-slate-100">
+                <TrendingUp className="w-6 h-6 text-slate-400" />
               </div>
-              <p className="text-sm font-semibold text-slate-500">No trend data yet</p>
-              <p className="text-xs text-slate-600 max-w-xs">
+              <p className="text-sm font-bold text-slate-500">No trend data yet</p>
+              <p className="text-xs text-slate-400 max-w-xs leading-normal">
                 Trends appear after the daily health snapshot job runs. Account pages still show live scores.
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800">
-          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400">
             <div className="flex items-center gap-1.5">
-              <span className="w-4 h-0.5 rounded-full inline-block" style={{ background: '#0ea5e9' }} />
+              <span className="w-4 h-0.5 rounded-full inline-block bg-sky-500" />
               <span>Avg health</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-4 h-0.5 rounded-full inline-block" style={{ background: '#0d9488', borderTop: '2px dashed #0d9488', height: 0 }} />
+              <span className="w-4 h-0.5 rounded-full inline-block bg-teal-600" style={{ borderTop: '2px dashed #0d9488', height: 0 }} />
               <span>Engagement</span>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-600">
-            <Info className="w-3 h-3" />
+          <div className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-slate-400">
+            <Info className="w-3 h-3 text-slate-300" />
             <span>UTC daily snapshots</span>
           </div>
         </div>

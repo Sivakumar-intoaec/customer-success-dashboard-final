@@ -53,6 +53,8 @@ export default function App() {
     countryFilter: '',
   });
 
+  const [engagementWindow, setEngagementWindow] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -138,7 +140,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
   const accounts = data?.accounts || [];
 
   return (
-    <div className="min-h-screen text-slate-100 antialiased selection:bg-sky-500 selection:text-white" style={{ background: '#080d15' }}>
+    <div className="min-h-screen text-slate-800 antialiased selection:bg-sky-500 selection:text-white bg-slate-50">
       <Navbar
         searchQuery={filter.searchQuery}
         onSearchChange={(q) => handleFilterChange({ searchQuery: q })}
@@ -157,20 +159,20 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
         onToggleOnlyPaidOrgs={() => handleFilterChange({ onlyPaidOrgs: !filter.onlyPaidOrgs })}
         onOpenPresentation={() => setIsPresentationOpen(true)}
         hasPresentationData={!!data}
+        engagementWindow={engagementWindow}
+        onEngagementWindowChange={setEngagementWindow}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
         {error && (
-          <div className="p-4 rounded-2xl text-xs flex items-start justify-between gap-3"
-            style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.25)', color: '#fca5a5' }}>
+          <div className="p-4 rounded-2xl text-xs flex items-start justify-between gap-3 bg-rose-50 border border-rose-200 text-rose-800 animate-fade-in">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
               <span>{error}</span>
             </div>
             <button
               onClick={loadDashboardData}
-              className="px-3 py-1 rounded-lg font-bold text-[11px] shrink-0 transition-all active:scale-95"
-              style={{ background: 'rgba(244,63,94,0.2)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)' }}
+              className="px-3 py-1 rounded-lg font-bold text-[11px] shrink-0 transition-all active:scale-95 bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200/50"
             >
               Retry
             </button>
@@ -178,9 +180,8 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
         )}
 
         {isLoading && loadSourceHint && (
-          <div className="p-3 rounded-2xl text-xs flex items-center gap-2"
-            style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', color: '#7dd3fc' }}>
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ color: '#38bdf8' }} />
+          <div className="p-3 rounded-2xl text-xs flex items-center gap-2 bg-sky-50 border border-sky-100 text-sky-800 animate-fade-in">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-600" />
             <span>{loadSourceHint}</span>
           </div>
         )}
@@ -199,6 +200,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
           totalPaidCount={paidOrgs.length || accounts.length}
           onlyPaidOrgs={filter.onlyPaidOrgs}
           onFilterClick={(bucket) => handleFilterChange({ healthBucket: bucket })}
+          engagementWindow={engagementWindow}
         />
 
         {!isLoading && accounts.length > 0 && (
@@ -222,6 +224,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
           onSelectAccount={setSelectedAccount}
           onDraftEmailForAccount={handleDraftEmailForAccount}
           paidOrgsMap={paidOrgsMap}
+          engagementWindow={engagementWindow}
         />
 
         <ModuleAdoptionCard
@@ -243,6 +246,7 @@ Please keep the tone helpful, non-technical, and focused on offering a 15-minute
           onDraftEmail={handleOpenAiWithAccountModal}
           customApiKey={customApiKey || undefined}
           isPaidPlan={paidOrgsMap.has(selectedAccount.organizationId) || selectedAccount.isPaidPlan}
+          engagementWindow={engagementWindow}
         />
       )}
 

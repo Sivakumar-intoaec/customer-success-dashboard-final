@@ -11,31 +11,31 @@ html, body, #root {
 
 body {
   margin: 0;
-  background-color: #080d15;
-  color: #e2e8f0;
+  background-color: #f8fafc;
+  color: #1e293b;
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* Card base */
 .card {
-  background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 20px rgba(148, 163, 184, 0.08);
 }
 
 /* Glass card */
 .glass-card {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.5);
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
 }
 
@@ -47,8 +47,8 @@ body {
 
 /* Pulse glow */
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(14, 165, 233, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(14, 165, 233, 0.6); }
+  0%, 100% { box-shadow: 0 0 8px rgba(14, 165, 233, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(14, 165, 233, 0.35); }
 }
 
 /* Fade in */
@@ -66,7 +66,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #1e293b 25%, #273548 50%, #1e293b 75%);
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 8px;

@@ -86,6 +86,36 @@ export interface AccountSummary {
   organizationType?: string | null;
   countryCode?: string | null;
   isPaidPlan?: boolean;
+  userCount?: number;
+  
+  // Spec metrics
+  activeProjectsCount?: number;
+  stalledProjectsCount?: number;
+  renewalDate?: number | null;
+  daysToRenewal?: number | null;
+  renewalState?: 'healthy' | 'watch' | 'action';
+  churnRiskLevel?: 'healthy' | 'watch' | 'action';
+  churnRiskSignals?: string[];
+  licensedSeats?: number;
+  activeSeats?: number;
+  seatUtilisation?: number;
+  lastActionDate?: number | null;
+  daysSilent?: number | null;
+  inactiveRiskState?: 'healthy' | 'watch' | 'action';
+  
+  // Relationship & support
+  lastExecContact?: number | null;
+  lastQbr?: number | null;
+  execIdentified?: boolean;
+  execEngagementState?: 'healthy' | 'watch' | 'action';
+  onboardingProgress?: number;
+  ttfv?: number | null;
+  onboardingState?: 'healthy' | 'watch' | 'action';
+  ticketsCount14d?: number;
+  csat?: number | null;
+  recordsCreated30d?: number;
+  featuresUsed?: string[];
+  avgProjectRisk?: number;
 }
 
 export interface PortfolioAnalyticsBody {

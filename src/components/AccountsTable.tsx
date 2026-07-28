@@ -29,13 +29,14 @@ interface AccountsTableProps {
   onSelectAccount: (account: AccountSummary) => void;
   onDraftEmailForAccount: (account: AccountSummary) => void;
   paidOrgsMap: Map<string, PaymasterOrganization>;
+  engagementWindow: 'daily' | 'weekly' | 'monthly';
 }
 
 const CARD_STYLE: React.CSSProperties = {
-  background: 'linear-gradient(135deg, #111827 0%, #0f172a 100%)',
-  border: '1px solid rgba(51,65,85,0.6)',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
   borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+  boxShadow: '0 4px 20px rgba(148, 163, 184, 0.08)',
 };
 
 export const AccountsTable: React.FC<AccountsTableProps> = ({
@@ -45,6 +46,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
   onSelectAccount,
   onDraftEmailForAccount,
   paidOrgsMap,
+  engagementWindow,
 }) => {
   const [sortField, setSortField] = useState<'healthScore' | 'organizationName' | 'lastActivityAt' | 'riskScore'>('healthScore');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
@@ -118,27 +120,27 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
   };
 
   const pills = [
-    { id: 'all' as const, label: `All (${bucketCounts.all})`, activeColor: '#0ea5e9', activeBg: 'rgba(14,165,233,0.15)' },
-    { id: 'attention' as const, label: `Focus (${bucketCounts.attention})`, activeColor: '#f59e0b', activeBg: 'rgba(245,158,11,0.15)' },
-    { id: 'healthy' as const, label: `Healthy (${bucketCounts.healthy})`, activeColor: '#10b981', activeBg: 'rgba(16,185,129,0.15)' },
-    { id: 'at-risk' as const, label: `At risk (${bucketCounts.atRisk})`, activeColor: '#f59e0b', activeBg: 'rgba(245,158,11,0.15)' },
-    { id: 'critical' as const, label: `Critical (${bucketCounts.critical})`, activeColor: '#f43f5e', activeBg: 'rgba(244,63,94,0.15)' },
+    { id: 'all' as const, label: `All (${bucketCounts.all})`, activeColor: '#0284c7', activeBg: 'rgba(14,165,233,0.06)' },
+    { id: 'attention' as const, label: `Focus (${bucketCounts.attention})`, activeColor: '#b45309', activeBg: 'rgba(245,158,11,0.06)' },
+    { id: 'healthy' as const, label: `Healthy (${bucketCounts.healthy})`, activeColor: '#047857', activeBg: 'rgba(16,185,129,0.06)' },
+    { id: 'at-risk' as const, label: `At risk (${bucketCounts.atRisk})`, activeColor: '#b45309', activeBg: 'rgba(245,158,11,0.06)' },
+    { id: 'critical' as const, label: `Critical (${bucketCounts.critical})`, activeColor: '#b91c1c', activeBg: 'rgba(244,63,94,0.06)' },
   ] as const;
 
   return (
-    <div style={CARD_STYLE} className="overflow-hidden">
+    <div style={CARD_STYLE} className="overflow-hidden bg-white border border-slate-200 shadow-sm rounded-2xl animate-fade-in">
       {/* Header */}
-      <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col gap-4">
+      <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg" style={{ background: 'rgba(14,165,233,0.1)' }}>
-                <Building className="w-4 h-4 text-sky-400" />
+              <div className="p-1.5 rounded-lg border border-slate-100 bg-sky-50">
+                <Building className="w-4 h-4 text-sky-600" />
               </div>
-              <h2 className="text-base font-bold text-slate-100">Customer accounts</h2>
+              <h2 className="text-base font-bold text-slate-800">Customer accounts</h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5 ml-8">
-              Showing <strong className="text-slate-300">{sortedAccounts.length}</strong> of {accounts.length} · click a row for the full account picture
+              Showing <strong className="text-slate-700">{sortedAccounts.length}</strong> of {accounts.length} · click a row for details
             </p>
           </div>
 
@@ -146,8 +148,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
             <select
               value={filter.healthTrend}
               onChange={(e) => onFilterChange({ healthTrend: e.target.value as DashboardFilter['healthTrend'] })}
-              className="text-xs rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none"
-              style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(51,65,85,0.8)' }}
+              className="text-xs rounded-lg px-2.5 py-1.5 text-slate-600 focus:outline-none bg-slate-50 border border-slate-200 cursor-pointer"
             >
               <option value="all">All trends</option>
               <option value="improving">Improving</option>
@@ -159,8 +160,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
               <select
                 value={filter.countryFilter}
                 onChange={(e) => onFilterChange({ countryFilter: e.target.value })}
-                className="text-xs rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none"
-                style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(51,65,85,0.8)' }}
+                className="text-xs rounded-lg px-2.5 py-1.5 text-slate-600 focus:outline-none bg-slate-50 border border-slate-200 cursor-pointer"
               >
                 <option value="">All countries</option>
                 {countries.map((c) => (<option key={c} value={c}>{c}</option>))}
@@ -170,17 +170,16 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-1.5 flex-wrap p-1 rounded-xl w-fit"
-          style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(51,65,85,0.4)' }}>
+        <div className="flex items-center gap-1.5 flex-wrap p-1 rounded-xl w-fit bg-slate-100 border border-slate-200/60">
           {pills.map((pill) => {
             const isActive = filter.healthBucket === pill.id;
             return (
               <button
                 key={pill.id}
                 onClick={() => onFilterChange({ healthBucket: pill.id })}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer"
                 style={isActive
-                  ? { background: pill.activeBg, color: pill.activeColor, border: `1px solid ${pill.activeColor}33` }
+                  ? { background: '#ffffff', color: pill.activeColor, boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }
                   : { color: '#64748b', border: '1px solid transparent' }}
               >
                 {pill.label}
@@ -192,84 +191,87 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-400">
-          <thead className="text-[11px] uppercase tracking-wider font-semibold border-b border-slate-800"
-            style={{ background: 'rgba(15,23,42,0.6)', color: '#64748b' }}>
+        <table className="w-full text-left text-xs text-slate-600">
+          <thead className="text-[10px] uppercase tracking-wider font-bold border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th onClick={() => handleSort('organizationName')} className="py-3 px-4 cursor-pointer hover:text-slate-300 transition-colors">
-                <div className="flex items-center gap-1">Customer <ArrowUpDown className="w-3 h-3" /></div>
+              <th onClick={() => handleSort('organizationName')} className="py-3 px-4 cursor-pointer hover:text-slate-800 transition-colors">
+                <div className="flex items-center gap-1">Customer <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
               </th>
-              <th onClick={() => handleSort('healthScore')} className="py-3 px-4 cursor-pointer hover:text-slate-300 transition-colors">
-                <div className="flex items-center gap-1">Health <ArrowUpDown className="w-3 h-3" /></div>
+              <th onClick={() => handleSort('healthScore')} className="py-3 px-4 cursor-pointer hover:text-slate-800 transition-colors">
+                <div className="flex items-center gap-1">Health <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
               </th>
               <th className="py-3 px-4">Engagement</th>
               <th className="py-3 px-4">Modules</th>
               <th className="py-3 px-4">Suggested next step</th>
-              <th onClick={() => handleSort('lastActivityAt')} className="py-3 px-4 cursor-pointer hover:text-slate-300 transition-colors">
-                <div className="flex items-center gap-1">Last active <ArrowUpDown className="w-3 h-3" /></div>
+              <th onClick={() => handleSort('lastActivityAt')} className="py-3 px-4 cursor-pointer hover:text-slate-800 transition-colors">
+                <div className="flex items-center gap-1">Last active <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
               </th>
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {sortedAccounts.length > 0 ? (
               sortedAccounts.map((account) => {
                 const paidOrg = paidOrgsMap.get(account.organizationId);
                 const isPaid = paidOrgsMap.size === 0 || paidOrg != null || account.isPaidPlan;
                 const healthScore = Math.round(account.healthScore || 0);
 
+                // Setup dynamic active users metrics format:
+                const engagementLabel = engagementWindow === 'daily' ? 'DAU' : engagementWindow === 'weekly' ? 'WAU' : 'MAU';
+                const activeCount = engagementWindow === 'daily' ? (account.dau || 0) : engagementWindow === 'weekly' ? (account.wau || 0) : (account.mau || 0);
+                const userCountLimit = account.userCount || 1;
+                const utilizationPercent = Math.min(100, Math.round((activeCount / userCountLimit) * 100));
+
                 return (
                   <tr
                     key={account.organizationId}
                     onClick={() => onSelectAccount(account)}
-                    className="border-b border-slate-800/60 transition-all cursor-pointer group"
-                    style={{ borderBottomColor: 'rgba(51,65,85,0.3)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(14,165,233,0.03)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
+                    className="hover:bg-slate-50/60 transition-all cursor-pointer group"
                   >
                     {/* Customer */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-4">
                       <div className="flex items-start gap-2.5">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 text-white"
-                          style={{ background: 'linear-gradient(135deg, #0ea5e9, #0d9488)' }}>
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 text-white shadow-sm"
+                          style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0d9488 100%)' }}>
                           {(account.organizationName || 'O')[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-slate-200 group-hover:text-sky-300 transition-colors text-[13px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-800 group-hover:text-sky-600 transition-colors text-[13px]">
                               {account.organizationName || 'Unnamed organization'}
                             </span>
                             {isPaid && (
-                              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded-md"
-                                style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}>
-                                <Zap className="w-2.5 h-2.5 fill-amber-400" /> Paid
+                              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-50 border border-amber-200 text-amber-800">
+                                <Zap className="w-2.5 h-2.5 fill-amber-500 text-amber-500" /> Paid
                               </span>
                             )}
                             {account.countryCode && (
-                              <span className="text-[10px] font-semibold text-slate-600">{account.countryCode}</span>
+                              <span className="text-[9px] font-bold px-1 py-0.25 bg-slate-100 rounded text-slate-500">{account.countryCode}</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 text-slate-600 font-mono text-[11px]">
-                            <span className="truncate max-w-[140px]">{account.accountNumber || account.organizationId}</span>
+                          <div className="flex items-center gap-1 mt-0.5 text-slate-400 font-mono text-[10px]">
+                            <span className="truncate max-w-[120px]">{account.accountNumber || account.organizationId}</span>
                             <button
                               onClick={(e) => handleCopyId(e, account.organizationId)}
-                              title="Copy organization ID"
-                              className="p-0.5 hover:text-slate-300 transition-colors"
+                              title="Copy ID"
+                              className="p-0.5 hover:text-slate-700 transition-colors cursor-pointer"
                             >
                               {copiedId === account.organizationId ? (
-                                <Check className="w-3 h-3 text-emerald-400" />
+                                <Check className="w-2.5 h-2.5 text-emerald-600" />
                               ) : (
-                                <Copy className="w-3 h-3" />
+                                <Copy className="w-2.5 h-2.5 text-slate-300 hover:text-slate-500" />
                               )}
                             </button>
                           </div>
-                          {paidOrg?.subscriptionValidTill && (
-                            <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-slate-400 bg-slate-800/50 w-fit px-2 py-0.5 rounded-md border border-slate-700/50">
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#38bdf8' }}></span>
-                              <span>Renews {new Date(paidOrg.subscriptionValidTill).toLocaleDateString()}</span>
-                              <span className="opacity-70 border-l border-slate-600 pl-1.5 ml-0.5">
-                                {Math.ceil((paidOrg.subscriptionValidTill - Date.now()) / 86400000)} days left
+                          {account.renewalDate && (
+                            <div className="flex items-center gap-1 mt-1 text-[9px] text-slate-400 bg-slate-50 border border-slate-100 w-fit px-1.5 py-0.5 rounded">
+                              <span className="w-1.5 h-1.5 rounded-full"
+                                style={{ background: account.renewalState === 'action' ? '#ef4444' : account.renewalState === 'watch' ? '#f59e0b' : '#10b981' }}
+                              />
+                              <span>Renews {new Date(account.renewalDate).toLocaleDateString()}</span>
+                              <span className="opacity-60 border-l border-slate-200 pl-1 ml-1 font-bold">
+                                {account.daysToRenewal != null ? `${account.daysToRenewal}d left` : ''}
                               </span>
                             </div>
                           )}
@@ -278,28 +280,27 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
                     </td>
 
                     {/* Health */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <div className="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border"
+                        <div className="px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 border"
                           style={{
-                            background: healthScore >= 70 ? 'rgba(16,185,129,0.1)' : healthScore >= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(244,63,94,0.1)',
-                            borderColor: healthScore >= 70 ? 'rgba(16,185,129,0.35)' : healthScore >= 40 ? 'rgba(245,158,11,0.35)' : 'rgba(244,63,94,0.35)',
-                            color: healthScore >= 70 ? '#34d399' : healthScore >= 40 ? '#fbbf24' : '#f87171',
+                            background: healthScore >= 70 ? 'rgba(16,185,129,0.06)' : healthScore >= 40 ? 'rgba(245,158,11,0.06)' : 'rgba(244,63,94,0.06)',
+                            borderColor: healthScore >= 70 ? 'rgba(16,185,129,0.25)' : healthScore >= 40 ? 'rgba(245,158,11,0.25)' : 'rgba(244,63,94,0.25)',
+                            color: healthScore >= 70 ? '#047857' : healthScore >= 40 ? '#b45309' : '#b91c1c',
                           }}>
                           <HeartPulse className="w-3.5 h-3.5" />
                           <span>{healthScore}</span>
                         </div>
                         {account.healthTrend === 'improving' ? (
-                          <TrendingUp className="w-3.5 h-3.5 text-emerald-400" title="Improving" />
+                          <TrendingUp className="w-3.5 h-3.5 text-emerald-500" title="Improving" />
                         ) : account.healthTrend === 'declining' ? (
-                          <TrendingDown className="w-3.5 h-3.5 text-rose-400" title="Declining" />
+                          <TrendingDown className="w-3.5 h-3.5 text-rose-500" title="Declining" />
                         ) : (
-                          <Minus className="w-3.5 h-3.5 text-slate-600" title="Stable" />
+                          <Minus className="w-3.5 h-3.5 text-slate-300" title="Stable" />
                         )}
                         {(account.openAlertsCritical ?? 0) > 0 && (
-                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md flex items-center gap-0.5"
-                            style={{ background: 'rgba(244,63,94,0.12)', color: '#f87171', border: '1px solid rgba(244,63,94,0.25)' }}>
-                            <AlertTriangle className="w-3 h-3" />
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-0.5">
+                            <AlertTriangle className="w-3 h-3 text-rose-600" />
                             {account.openAlertsCritical}
                           </span>
                         )}
@@ -307,17 +308,17 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
                     </td>
 
                     {/* Engagement */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-4">
                       <div className="w-28">
-                        <div className="flex items-center justify-between text-[11px] mb-1.5">
-                          <span className="font-semibold text-slate-300">{Math.round((account.stickinessRatio || 0) * 100)}%</span>
-                          <span className="text-slate-600">DAU {account.dau || 0}</span>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="font-semibold text-slate-700">{engagementLabel} {activeCount}/{account.userCount || 0}</span>
+                          <span className="text-slate-400 font-bold">{utilizationPercent}%</span>
                         </div>
-                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(30,41,59,0.8)' }}>
+                        <div className="w-full h-1 bg-slate-100 border border-slate-200/50 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
-                              width: `${Math.min(Math.round((account.stickinessRatio || 0) * 100), 100)}%`,
+                              width: `${utilizationPercent}%`,
                               background: 'linear-gradient(90deg, #0ea5e9, #0d9488)',
                             }}
                           />
@@ -326,56 +327,50 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
                     </td>
 
                     {/* Modules */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex flex-wrap gap-1 max-w-[180px]">
+                    <td className="py-3 px-4">
+                      <div className="flex flex-wrap gap-1 max-w-[160px]">
                         {account.modulesUsed?.length ? (
                           account.modulesUsed.slice(0, 3).map((mod) => (
-                            <span key={mod} className="px-1.5 py-0.5 text-[10px] font-medium rounded-md"
-                              style={{ background: 'rgba(30,41,59,0.8)', color: '#94a3b8', border: '1px solid rgba(51,65,85,0.5)' }}>
+                            <span key={mod} className="px-1.5 py-0.5 text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/50 rounded-md">
                               {moduleLabel(mod)}
                             </span>
                           ))
                         ) : (
-                          <span className="text-slate-600 text-[11px] italic">No modules yet</span>
+                          <span className="text-slate-400 text-[10px] italic">No modules yet</span>
                         )}
                         {(account.modulesUsed?.length || 0) > 3 && (
-                          <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-md"
-                            style={{ background: 'rgba(14,165,233,0.1)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.2)' }}>
+                          <span className="px-1 py-0.5 text-[9px] font-bold bg-sky-50 border border-sky-100 text-sky-700 rounded-md">
                             +{account.modulesUsed.length - 3}
                           </span>
                         )}
                       </div>
                     </td>
 
-                    {/* Suggested action */}
-                    <td className="py-3.5 px-4 max-w-[200px]">
+                    {/* Suggested next step */}
+                    <td className="py-3 px-4 max-w-[180px]">
                       <span className="text-[11px] text-slate-500 leading-snug line-clamp-2">
                         {getSuggestedCsAction(account)}
                       </span>
                     </td>
 
                     {/* Last active */}
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                    <td className="py-3 px-4 font-mono text-[10px] text-slate-500">
                       {formatRelativeTime(account.lastActivityAt)}
                     </td>
 
                     {/* Actions */}
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => onDraftEmailForAccount(account)}
                           title="Draft a check-in email"
-                          className="p-1.5 rounded-lg transition-all hover:scale-110"
-                          style={{ background: 'rgba(14,165,233,0.08)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.15)' }}
+                          className="p-1.5 rounded-lg border border-sky-100 text-sky-700 bg-sky-50 hover:bg-sky-100/80 transition-all cursor-pointer active:scale-95"
                         >
                           <Mail className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => onSelectAccount(account)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all hover:scale-105"
-                          style={{ background: 'rgba(30,41,59,0.8)', color: '#94a3b8', border: '1px solid rgba(51,65,85,0.6)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(14,165,233,0.8)'; e.currentTarget.style.color = '#fff'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,41,59,0.8)'; e.currentTarget.style.color = '#94a3b8'; }}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-0.5 border border-slate-200 bg-slate-50 text-slate-600 hover:bg-sky-500 hover:text-white hover:border-sky-500 transition-all cursor-pointer active:scale-95"
                         >
                           Open
                           <ChevronRight className="w-3 h-3" />
@@ -387,15 +382,15 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
               })
             ) : (
               <tr>
-                <td colSpan={7} className="py-16 text-center">
+                <td colSpan={7} className="py-16 text-center bg-white">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="p-4 rounded-2xl" style={{ background: 'rgba(30,41,59,0.5)' }}>
-                      <Search className="w-8 h-8 text-slate-600" />
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                      <Search className="w-8 h-8 text-slate-400" />
                     </div>
-                    <p className="text-sm font-semibold text-slate-500">No accounts match these filters</p>
+                    <p className="text-sm font-bold text-slate-500">No accounts match these filters</p>
                     <button
                       onClick={() => onFilterChange({ healthBucket: 'all', healthTrend: 'all', countryFilter: '', moduleFilter: 'all', searchQuery: '' })}
-                      className="text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+                      className="text-xs font-bold text-sky-600 hover:text-sky-700 transition-colors cursor-pointer"
                     >
                       Clear all filters
                     </button>

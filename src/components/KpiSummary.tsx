@@ -15,6 +15,7 @@ interface KpiSummaryProps {
   totalPaidCount: number;
   onlyPaidOrgs: boolean;
   onFilterClick?: (filter: HealthBucketFilter) => void;
+  engagementWindow: 'daily' | 'weekly' | 'monthly';
 }
 
 export const KpiSummary: React.FC<KpiSummaryProps> = ({
@@ -23,6 +24,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
   totalPaidCount,
   onlyPaidOrgs,
   onFilterClick,
+  engagementWindow,
 }) => {
   if (!summary) {
     return (
@@ -46,6 +48,28 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
 
   const stickinessPercent = Math.round((avgStickiness || 0) * 100);
 
+  // AH-2 States: Health >= 70 (Healthy), 40-69 (Watch), <40 (Action)
+  const healthColor = avgHealthScore >= 70 ? '#10b981' : avgHealthScore >= 40 ? '#f59e0b' : '#f43f5e';
+  const healthBg = avgHealthScore >= 70 ? 'rgba(16,185,129,0.06)' : avgHealthScore >= 40 ? 'rgba(245,158,11,0.06)' : 'rgba(244,63,94,0.06)';
+  const healthStatusLabel = avgHealthScore >= 70 ? 'Healthy' : avgHealthScore >= 40 ? 'Watch' : 'Action needed';
+
+  // NF-3 States (Need Focus as % of book): Watch >= 10%, Action >= 20%, else Healthy
+  const focusPercentage = totalAccounts > 0 ? (accountsNeedingAttention / totalAccounts) * 100 : 0;
+  const focusColor = focusPercentage >= 20 ? '#f43f5e' : focusPercentage >= 10 ? '#f59e0b' : '#10b981';
+  const focusBg = focusPercentage >= 20 ? 'rgba(244,63,94,0.06)' : focusPercentage >= 10 ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.06)';
+
+  // EN-3 Engagement states: >= 50% Healthy, 20-49% Watch, < 20% Action
+  const engagementColor = stickinessPercent >= 50 ? '#10b981' : stickinessPercent >= 20 ? '#f59e0b' : '#f43f5e';
+  const engagementBg = stickinessPercent >= 50 ? 'rgba(16,185,129,0.06)' : stickinessPercent >= 20 ? 'rgba(245,158,11,0.06)' : 'rgba(244,63,94,0.06)';
+
+  // IR-4 Inactive Risk states: Red if >= 1 flagged, else Green
+  const inactiveColor = churnRiskOrgs > 0 ? '#f43f5e' : '#10b981';
+  const inactiveBg = churnRiskOrgs > 0 ? 'rgba(244,63,94,0.06)' : 'rgba(16,185,129,0.06)';
+
+  // CA-3 Critical Alerts states: Red if 3+, Yellow if 1-2, Green if 0
+  const alertsColor = totalCriticalAlerts >= 3 ? '#f43f5e' : totalCriticalAlerts >= 1 ? '#f59e0b' : '#10b981';
+  const alertsBg = totalCriticalAlerts >= 3 ? 'rgba(244,63,94,0.06)' : totalCriticalAlerts >= 1 ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.06)';
+
   const cards = [
     {
       key: 'total',
@@ -55,59 +79,65 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
       hint: totalPaidCount > 0 ? `${totalPaidCount} All-in-One` : 'Portfolio total',
       icon: Users,
       accent: '#0ea5e9',
-      accentBg: 'rgba(14,165,233,0.1)',
+      accentBg: 'rgba(14,165,233,0.06)',
       onClick: () => onFilterClick?.('all'),
     },
     {
       key: 'health',
       label: 'Avg Health',
-      value: Math.round(avgHealthScore),
+      // AH-1: Mean of all paid-active org Health Scores, 1 decimal place.
+      value: Number(avgHealthScore).toFixed(1),
       suffix: '/ 100',
-      hint: avgHealthScore >= 70 ? 'Portfolio healthy' : avgHealthScore >= 40 ? 'Needs monitoring' : 'Needs CS focus',
+      hint: `State: ${healthStatusLabel}`,
       icon: HeartPulse,
-      accent: avgHealthScore >= 70 ? '#10b981' : avgHealthScore >= 40 ? '#f59e0b' : '#f43f5e',
-      accentBg: avgHealthScore >= 70 ? 'rgba(16,185,129,0.1)' : avgHealthScore >= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(244,63,94,0.1)',
+      accent: healthColor,
+      accentBg: healthBg,
     },
     {
       key: 'attention',
       label: 'Need Focus',
+      // NF-1: count(At-Risk) + count(Critical)
       value: accountsNeedingAttention,
       suffix: 'accounts',
-      hint: `${distribution.critical} critical · ${distribution.atRisk} at risk`,
+      // NF-2: Display "X critical • Y at-risk"; Critical listed first.
+      hint: `${distribution.critical} critical · ${distribution.atRisk} at-risk`,
       icon: AlertTriangle,
-      accent: '#f59e0b',
-      accentBg: 'rgba(245,158,11,0.1)',
+      accent: focusColor,
+      accentBg: focusBg,
       onClick: () => onFilterClick?.('attention'),
     },
     {
       key: 'churn',
       label: 'Inactive Risk',
+      // IR-4: Card = count of flagged (30+) orgs
       value: churnRiskOrgs,
       suffix: 'orgs',
-      hint: 'Quiet for 14+ days',
+      hint: 'Silent for 30+ days',
       icon: Flame,
-      accent: '#f43f5e',
-      accentBg: 'rgba(244,63,94,0.1)',
+      accent: inactiveColor,
+      accentBg: inactiveBg,
     },
     {
       key: 'stickiness',
       label: 'Engagement',
+      // EN-4 & EN-5: average of per-org stickiness (WAU/MAU) shown as %, fixed weekly/monthly
       value: `${stickinessPercent}%`,
-      suffix: 'DAU/MAU',
-      hint: 'Daily team return rate',
+      suffix: 'WAU/MAU',
+      hint: 'Fixed engagement ratio',
       icon: Activity,
-      accent: '#0d9488',
-      accentBg: 'rgba(13,148,136,0.1)',
+      accent: engagementColor,
+      accentBg: engagementBg,
     },
     {
       key: 'alerts',
       label: 'Critical Alerts',
+      // CA-1: Count of open ALERT-severity issues
       value: totalCriticalAlerts,
       suffix: 'open',
-      hint: 'Operational flags',
+      hint: 'AECAutopilot alerts',
       icon: Bell,
-      accent: totalCriticalAlerts > 0 ? '#f43f5e' : '#8b5cf6',
-      accentBg: totalCriticalAlerts > 0 ? 'rgba(244,63,94,0.1)' : 'rgba(139,92,246,0.1)',
+      accent: alertsColor,
+      accentBg: alertsBg,
       onClick: totalCriticalAlerts > 0 ? () => onFilterClick?.('attention') : undefined,
     },
   ];
@@ -120,28 +150,31 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
           <div
             key={card.key}
             onClick={card.onClick}
-            className={`relative rounded-2xl p-4 border transition-all duration-200 animate-fade-in overflow-hidden ${card.onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-lg' : ''}`}
-            style={{
-              background: 'linear-gradient(135deg, #111827 0%, #0f172a 100%)',
-              borderColor: 'rgba(51,65,85,0.6)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            }}
+            className={`relative rounded-2xl p-4 border transition-all duration-200 animate-fade-in overflow-hidden ${
+              card.onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-md' : ''
+            } bg-white border-slate-200 shadow-sm`}
           >
             {/* Glow orb */}
-            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none"
-              style={{ background: card.accent }} />
+            <div
+              className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
+              style={{ background: card.accent }}
+            />
 
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{card.label}</span>
-              <div className="p-1.5 rounded-lg" style={{ background: card.accentBg }}>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                {card.label}
+              </span>
+              <div className="p-1.5 rounded-lg border border-slate-100" style={{ background: card.accentBg }}>
                 <Icon className="w-3.5 h-3.5" style={{ color: card.accent }} />
               </div>
             </div>
-            <div className="flex items-baseline gap-1.5 mb-1">
-              <span className="text-2xl font-black" style={{ color: card.accent }}>{card.value}</span>
-              <span className="text-[11px] text-slate-500">{card.suffix}</span>
+            <div className="flex items-baseline gap-1 mb-1">
+              <span className="text-2xl font-extrabold tracking-tight" style={{ color: card.accent }}>
+                {card.value}
+              </span>
+              <span className="text-[10px] text-slate-400 font-semibold">{card.suffix}</span>
             </div>
-            <div className="text-[11px] text-slate-500 truncate">{card.hint}</div>
+            <div className="text-[10px] text-slate-500 font-medium truncate">{card.hint}</div>
           </div>
         );
       })}
