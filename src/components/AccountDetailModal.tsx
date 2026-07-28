@@ -291,7 +291,12 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                       <span className="text-[10px] font-semibold text-slate-500 mt-1.5 block flex items-center gap-1">
                         <Activity className="w-3 h-3 text-teal-500" />
                         {engagementWindow === 'daily' ? 'DAU' : engagementWindow === 'weekly' ? 'WAU' : 'MAU'}:{' '}
-                        {engagementWindow === 'daily' ? accountSummary.dau : engagementWindow === 'weekly' ? accountSummary.wau : accountSummary.mau} / {accountSummary.userCount}
+                        {engagementWindow === 'daily'
+                          ? (accountSummary.dau ?? 0)
+                          : engagementWindow === 'weekly'
+                            ? (accountSummary.wau ?? 0)
+                            : (accountSummary.mau ?? 0)}{' '}
+                        / {accountSummary.userCount ?? 0}
                       </span>
                     </div>
 

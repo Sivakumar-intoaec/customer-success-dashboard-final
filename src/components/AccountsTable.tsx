@@ -219,9 +219,15 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
 
                 // Setup dynamic active users metrics format:
                 const engagementLabel = engagementWindow === 'daily' ? 'DAU' : engagementWindow === 'weekly' ? 'WAU' : 'MAU';
-                const activeCount = engagementWindow === 'daily' ? (account.dau || 0) : engagementWindow === 'weekly' ? (account.wau || 0) : (account.mau || 0);
-                const userCountLimit = account.userCount || 1;
-                const utilizationPercent = Math.min(100, Math.round((activeCount / userCountLimit) * 100));
+                const activeCount = engagementWindow === 'daily'
+                  ? (account.dau ?? 0)
+                  : engagementWindow === 'weekly'
+                    ? (account.wau ?? 0)
+                    : (account.mau ?? 0);
+                const userCountLimit = account.userCount ?? 0;
+                const utilizationPercent = userCountLimit > 0
+                  ? Math.min(100, Math.round((activeCount / userCountLimit) * 100))
+                  : 0;
 
                 return (
                   <tr
@@ -311,7 +317,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
                     <td className="py-3 px-4">
                       <div className="w-28">
                         <div className="flex items-center justify-between text-[10px] mb-1">
-                          <span className="font-semibold text-slate-700">{engagementLabel} {activeCount}/{account.userCount || 0}</span>
+                          <span className="font-semibold text-slate-700">{engagementLabel} {activeCount}/{userCountLimit}</span>
                           <span className="text-slate-400 font-bold">{utilizationPercent}%</span>
                         </div>
                         <div className="w-full h-1 bg-slate-100 border border-slate-200/50 rounded-full overflow-hidden">

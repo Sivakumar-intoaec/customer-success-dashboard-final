@@ -10,6 +10,41 @@ function toEpochMs(value: unknown): number | null {
   return n;
 }
 
+function toMetricNumber(value: unknown): number | undefined {
+  if (value == null || value === '') return undefined;
+  const n = typeof value === 'number' ? value : Number(String(value).trim());
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function countUniqueOrgUsers(detail: {
+  topUsers?: Array<{ userId?: string }>;
+  inactiveUsers?: Array<{ userId?: string }>;
+}): number | undefined {
+  const ids = new Set<string>();
+  for (const user of [...(detail.topUsers ?? []), ...(detail.inactiveUsers ?? [])]) {
+    if (user?.userId) ids.add(String(user.userId));
+  }
+  return ids.size > 0 ? ids.size : undefined;
+}
+
+function extractEngagementMetrics(
+  source: Record<string, unknown>,
+  detail?: {
+    topUsers?: Array<{ userId?: string }>;
+    inactiveUsers?: Array<{ userId?: string }>;
+  }
+) {
+  const health = (source.health ?? {}) as Record<string, unknown>;
+  const dau = toMetricNumber(source.dau ?? health.dau);
+  const wau = toMetricNumber(source.wau ?? health.wau);
+  const mau = toMetricNumber(source.mau ?? health.mau) ?? toMetricNumber(health.activeUsers30d);
+  const userCount =
+    toMetricNumber(source.userCount ?? health.userCount) ??
+    (detail ? countUniqueOrgUsers(detail) : undefined);
+  const stickinessRatio = toMetricNumber(source.stickinessRatio ?? health.stickinessRatio);
+  return { dau, wau, mau, userCount, stickinessRatio };
+}
+
 // ── Helper: safely parse possibly double-encoded JSON ──────────────────────────
 function safeJsonParse(raw: string): unknown {
   try {
@@ -201,19 +236,19 @@ function enrichAccountWithCSMetrics(acc: any): any {
   if (seed % 5 === 0) featuresUsed.push('WhatsApp automation');
   if (seed % 7 === 0) featuresUsed.push('Estimation');
 
-  const finalWau = acc.wau || Math.round(activeSeats * 1.5);
-  const finalMau = acc.mau || Math.round(activeSeats * 2.5);
+  const finalWau = acc.wau ?? 0;
+  const finalMau = acc.mau ?? 0;
   const calculatedStickiness = finalMau > 0 ? finalWau / finalMau : 0;
 
   return {
     ...acc,
     healthScore,
     healthBucket,
-    dau: acc.dau || activeSeats,
+    dau: acc.dau ?? 0,
     wau: finalWau,
     mau: finalMau,
-    userCount: acc.userCount || Math.round(licensedSeats * 1.2),
-    stickinessRatio: acc.stickinessRatio || calculatedStickiness,
+    userCount: acc.userCount ?? 0,
+    stickinessRatio: acc.stickinessRatio ?? calculatedStickiness,
     activeProjectsCount,
     stalledProjectsCount,
     renewalDate,
@@ -427,9 +462,13 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
       ) {
         // Normalize string epoch fields and mark as paid (CS portfolio is paid-only)
         const normalizedAccounts = (portfolioEnv.body.accounts as Array<Record<string, unknown>>).map((acc) => {
+          const health = (acc.health ?? {}) as Record<string, unknown>;
+          const engagement = extractEngagementMetrics(acc);
           const norm = {
             ...acc,
-            lastActivityAt: toEpochMs(acc.lastActivityAt),
+            ...health,
+            ...engagement,
+            lastActivityAt: toEpochMs(acc.lastActivityAt ?? health.lastActivityAt),
             snapshotDate: toEpochMs(acc.snapshotDate) ?? Date.now(),
             isPaidPlan: true,
           };
@@ -512,7 +551,9 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
       interface DetailShape {
         organizationId?: string;
         profile?: { organizationName?: string | null; accountNumber?: string | null; emailAddress?: string | null; organizationType?: string | null; countryCode?: string | null };
-        health?: { healthScore?: number; healthTrend?: string; healthBucket?: string; stickinessRatio?: number; dau?: number; wau?: number; mau?: number; moduleBreadth?: number; automationAdoptionScore?: number; lastActivityAt?: number | null; openAlerts?: { critical?: number; warning?: number; escalated?: number }; riskScore?: number };
+        health?: { healthScore?: number; healthTrend?: string; healthBucket?: string; stickinessRatio?: number; dau?: number; wau?: number; mau?: number; activeUsers30d?: number; userCount?: number; moduleBreadth?: number; automationAdoptionScore?: number; lastActivityAt?: number | null; openAlerts?: { critical?: number; warning?: number; escalated?: number }; riskScore?: number };
+        topUsers?: Array<{ userId?: string }>;
+        inactiveUsers?: Array<{ userId?: string }>;
         adoption?: {
           modulesUsed?: string[];
           lastModuleUsed?: string | null;
@@ -538,15 +579,17 @@ const DEFAULT_API_KEY = (process.env.AECAUTOPILOT_APIKEY && process.env.AECAUTOP
           const a = d.adoption ?? {};
           const auto = d.automation ?? {};
           const lastModule = a.lastModuleUsed ?? a.modulesUsed?.[0] ?? null;
+          const engagement = extractEngagementMetrics({ health: h }, d);
           const rawAcc = {
             organizationId: r.organizationId,
             healthScore: h.healthScore ?? 0,
             healthTrend: h.healthTrend ?? 'stable',
             healthBucket: h.healthBucket ?? 'critical',
-            stickinessRatio: h.stickinessRatio ?? 0,
-            dau: h.dau ?? 0,
-            wau: h.wau ?? 0,
-            mau: h.mau ?? 0,
+            stickinessRatio: engagement.stickinessRatio ?? 0,
+            dau: engagement.dau ?? 0,
+            wau: engagement.wau ?? 0,
+            mau: engagement.mau ?? 0,
+            userCount: engagement.userCount ?? 0,
             moduleBreadth: h.moduleBreadth ?? 0,
             automationAdoptionScore: h.automationAdoptionScore ?? 0,
             activeWorkflowCount: auto.activeWorkflowCount ?? 0,
